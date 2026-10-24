@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💌 אגרות ברכה פוגעניות</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+    <style>
+        @font-face { font-family: 'OHNivRaviv'; src: url('./assets/fonts/OHNivRaviv-Regular.woff2') format('woff2'); }
+        @font-face { font-family: 'GveretLevin'; src: url('./assets/fonts/GveretLevin.otf') format('opentype'); }
+        body { margin: 0; padding: 0; font-family: 'OHNivRaviv', sans-serif; }
+        .numbers-font { font-family: 'GveretLevin', 'OHNivRaviv', sans-serif; }
+        :root { --pink: #f46167; --red: #cf726a; --beige: #f9dec9; --white: #f9fcea; --dark: #5C2C31; }
+        @keyframes heart-float { 0%,100% { transform: translate(0,0) rotate(0deg); } 25% { transform: translate(30px,-40px) rotate(10deg); } 50% { transform: translate(-20px,-70px) rotate(-5deg); } 75% { transform: translate(40px,-50px) rotate(8deg); } }
+        @keyframes bounce-in { 0% { transform: scale(0); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        @keyframes envelope-open { 0% { transform: translateY(0) rotateX(0deg); } 100% { transform: translateY(-80px) rotateX(180deg); opacity: 0; } }
+        @keyframes card-appear { 0% { transform: translateY(100px) scale(0.8); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
+        .custom-card { background: url('./assets/images/card-frame.png') center/100% 100% no-repeat; min-height: 220px; padding: 40px 35px; display: flex; align-items: center; justify-content: center; }
+        .centered-text { text-align: center; line-height: 1.8; word-wrap: break-word; overflow-wrap: break-word; }
+        textarea::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const {useState, useEffect} = React;
+
+        const SUPABASE_URL = 'https://enyibfygdrzripwkxuui.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVueWliZnlnZHJ6cmlwd2t4dXVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4NzYyOTEsImV4cCI6MjEwODQ1MjI5MX0.a1wfPAqlZWYxdgg8leN1f6KLXm7RtdLMH4hFATVhjsk';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const FloatingHearts = ({count = 50}) => {
+            const hearts = ['לב1.png','לב2.png','לב3.png','לב4.png','לב5.png','לב6.png'];
+            return <>{Array.from({length: count}).map((_, i) => {
+                const h = hearts[i % 6];
+                const size = 30 + Math.random() * 100;
+                return <img key={i} src={`./assets/images/${h}`} alt="" className="absolute pointer-events-none"
+                    style={{left:`${Math.random()*100}%`, top:`${Math.random()*100}%`, width:`${size}px`, opacity: 0.5 + Math.random()*0.5,
+                    animation:`heart-float ${5+Math.random()*5}s ease-in-out ${Math.random()*3}s infinite`}} />;
+            })}</>;
+        };
+
+        const CardDisplay = ({text}) => <div className="custom-card w-full max-w-lg"><div className="centered-text text-2xl font-bold numbers-font" style={{color:'var(--red)', wordWrap:'break-word', wordBreak:'break-word', whiteSpace:'pre-wrap', overflowWrap:'break-word'}}>{text}</div></div>;
+
+        const Envelope = ({isOpen, onOpen, children}) => {
+            const [show, setShow] = useState(false);
+            useEffect(() => { if(isOpen) setTimeout(() => setShow(true), 1200); }, [isOpen]);
+            return <div className="relative w-full max-w-md h-96 mx-auto" onClick={!isOpen?onOpen:null}>
+                {!isOpen && <div className="absolute inset-0 flex items-center justify-center cursor-pointer">
+                    <div><img src="./assets/images/מעטפה-סגורה.png" className="w-full max-w-sm hover:scale-105 transition" />
+                    <p className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full mt-6 text-xl font-bold" style={{color:'var(--red)'}}>לחץ כדי לפתוח</p></div>
+                </div>}
+                {isOpen && !show && <img src="./assets/images/מעטפה-פתוחה.png" className="absolute inset-0 m-auto w-full max-w-sm" style={{animation:'envelope-open 1.2s forwards'}} />}
+                {show && <div className="absolute inset-0 flex items-center justify-center" style={{animation:'card-appear 1s forwards', opacity:0}}>{children}</div>}
+            </div>;
+        };
+
+        function App() {
+            function getInitialScreen() {
+                const p = new URLSearchParams(window.location.search);
+                const h = new URLSearchParams(window.location.hash.substring(1));
+                const id = p.get('card') || h.get('card');
+                const tid = p.get('thank') || h.get('thank');
+                if(tid) return 'thankView';
+                return id ? 'view' : 'splash';
+            }
+
+            const [screen, setScreen] = useState(getInitialScreen);
+            const [card, setCard] = useState(null);
+            const [text, setText] = useState('');
+            const [open, setOpen] = useState(false);
+            const [showThanks, setShowThanks] = useState(false);
+            const [cardId, setCardId] = useState(null);
+            const [hearts, setHearts] = useState([]);
+            const [cards, setCards] = useState([]);
+            const [thanks, setThanks] = useState([]);
+            const [gender, setGender] = useState('male');
+            const [displayText, setDisplayText] = useState('');
+
+            // טעינת מאגר האגרות והתודות ממסד הנתונים
+            useEffect(() => {
+                supabase.from('cards').select('*').order('created_at').then(({data, error}) => {
+                    if(!error && data) setCards(data.map(c => ({id:c.id, textMale:c.text_male, textFemale:c.text_female})));
+                });
+                supabase.from('thanks').select('*').order('created_at').then(({data, error}) => {
+                    if(!error && data) setThanks(data.map(t => t.text));
+                });
+            }, []);
+
+            // עדכון טקסט לפי מין + איפוס לזכר בכל כרטיס חדש
+            useEffect(() => {
+                if (card) {
+                    setGender('male'); // תמיד מתחיל בזכר
+                    const text = card.textMale;
+                    setDisplayText(text);
+                }
+            }, [card]);
+
+            // עדכון טקסט כשמשנים מין
+            useEffect(() => {
+                if (card) {
+                    const text = gender === 'male' ? card.textMale : card.textFemale;
+                    setDisplayText(text);
+                }
+            }, [gender]);
+
+            const [splashTimer, setSplashTimer] = useState(null);
+
+            useEffect(() => {
+                if(screen==='splash') {
+                    const timer = setTimeout(() => setScreen('home'), 5000);
+                    setSplashTimer(timer);
+                    return () => clearTimeout(timer); // ניקוי כשעוזבים
+                }
+            }, [screen]);
+            const [viewGender, setViewGender] = useState('male');
+            const [thanksOpen, setThanksOpen] = useState(false);
+            const [selectedThanks, setSelectedThanks] = useState('');
+            const [thankId, setThankId] = useState(null);
+            const [thankText, setThankText] = useState('');
+
+            // טעינת אגרת/תודה שנשלחה אלינו, ישירות ממסד הנתונים (עובד לכל אחד, לא רק למי ששלח)
+            useEffect(() => {
+                const p = new URLSearchParams(window.location.search);
+                const h = new URLSearchParams(window.location.hash.substring(1));
+                const id = p.get('card') || h.get('card');
+                const tid = p.get('thank') || h.get('thank');
+                if(tid) {
+                    setThankId(tid); setScreen('thankView');
+                    supabase.from('sent_thanks').select('*').eq('id', tid).single().then(({data}) => {
+                        if(data) setThankText(data.text);
+                    });
+                } else if(id) {
+                    setCardId(id); setScreen('view');
+                    supabase.from('sent_cards').select('*').eq('id', id).single().then(({data}) => {
+                        if(data) { setCard({text:data.text}); setViewGender(data.gender || 'male'); }
+                    });
+                }
+            }, []);
+
+            const save = async (t, g) => {
+                const { data, error } = await supabase.from('sent_cards').insert({text:t, gender:g || 'male'}).select().single();
+                if(error) { console.error(error); alert('הייתה בעיה בשליחה, נסה שוב'); return null; }
+                return data.id;
+            };
+            const link = (id) => `${window.location.origin}${window.location.pathname}#card=${id}`;
+            const wa = (id) => window.open(`https://wa.me/?text=${encodeURIComponent(`קיבלת אגרת ברכה! 💌\n${link(id)}`)}`, '_blank');
+            const saveThank = async (t) => {
+                const { data, error } = await supabase.from('sent_thanks').insert({text:t}).select().single();
+                if(error) { console.error(error); alert('הייתה בעיה בשליחה, נסה שוב'); return null; }
+                return data.id;
+            };
+            const thankLink = (id) => `${window.location.origin}${window.location.pathname}#thank=${id}`;
+            const waThank = (id) => window.open(`https://wa.me/?text=${encodeURIComponent(`קיבלת תודה! 💝\n${thankLink(id)}`)}`, '_blank');
+            const pickThank = async (t) => {
+                const id = await saveThank(t);
+                if(!id) return;
+                setSelectedThanks(t); setShowThanks(true); setThanksOpen(false); setThankId(id); setScreen('thankSend');
+            };
+            const send = async (t, g) => {
+                const id = await save(t, g);
+                if(id) { setCardId(id); setScreen('send'); }
+            };
+
+            if(screen==='splash') return <div onClick={() => {if(splashTimer) clearTimeout(splashTimer); setScreen('home');}} className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden cursor-pointer" style={{background:'linear-gradient(135deg,var(--beige),var(--white))'}}>
+                <FloatingHearts count={50} />
+                <div className="relative z-10 text-center flex-1 flex flex-col items-center justify-center" style={{animation:'bounce-in 0.6s'}}>
+                    <img src="./assets/images/דמות-צהובה-כועסת-מסך-פתיחה.png" className="w-88 mx-auto mb-10" style={{width: '360px'}} />
+                    <h1 className="text-6xl font-bold mb-2" style={{color:'var(--pink)'}}>אגרות פוגעניות</h1>
+                </div>
+                <div className="relative z-10 text-center mb-8">
+                    <p className="text-base opacity-60" style={{color:'var(--red)'}}>לחץ בכל מקום להמשיך</p>
+                    <p className="text-xs mt-2 opacity-50" style={{color:'var(--dark)'}}>פותח על ידי רון מרוז ואסף יצחקי</p>
+                </div>
+            </div>;
+
+            if(screen==='home') return <div className="min-h-screen p-4 pb-24" style={{background:'linear-gradient(135deg,var(--beige),var(--white))'}}>
+                <div className="max-w-md mx-auto">
+                    <div className="text-center py-8"><div className="text-5xl mb-2">💌</div><h1 className="text-4xl font-bold" style={{color:'var(--red)'}}>אגרות פוגעניות</h1></div>
+                    <div className="space-y-6">{cards.map(c => <button key={c.id} onClick={() => {setCard(c); setGender('male'); setScreen('browse');}} className="w-full hover:scale-105 transition"><CardDisplay text={c.textMale} /></button>)}</div>
+                </div>
+                <button onClick={() => setScreen('create')} className="fixed bottom-8 left-8 w-16 h-16 rounded-full shadow-2xl hover:scale-110 transition z-50" style={{background:`linear-gradient(135deg,var(--pink),var(--red))`, backgroundImage:`url('./assets/images/אייקון-כתיבה.png')`, backgroundSize:'90%', backgroundPosition:'center', backgroundRepeat:'no-repeat'}} />
+            </div>;
+
+            if(screen==='browse') return <div className="min-h-screen p-4" style={{background:'linear-gradient(135deg,var(--beige),var(--white))'}}>
+                <div className="max-w-md mx-auto pt-8">
+                    <button onClick={() => {setScreen('home'); setGender('male');}} className="mb-6 text-xl hover:opacity-70" style={{color:'var(--red)'}}>◀ חזרה</button>
+                    <div className="mb-6"><CardDisplay text={displayText || card?.textMale || ''} /></div>
+
+                    {/* כפתורי זכר/נקבה */}
+                    <div className="flex gap-3 justify-center mb-6">
+                        <button
+                            onClick={() => setGender('male')}
+                            className="px-6 py-2 rounded-full font-bold transition-all"
+                            style={{
+                                background: gender === 'male' ? 'linear-gradient(135deg,#bfe3f0,#8fc9de)' : '#e5e7eb',
+                                color: gender === 'male' ? '#2c6479' : '#6b7280',
+                                border: 'none',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            זכר
+                        </button>
+                        <button
+                            onClick={() => setGender('female')}
+                            className="px-6 py-2 rounded-full font-bold transition-all"
+                            style={{
+                                background: gender === 'female' ? 'linear-gradient(135deg,#fbd2da,#f7afc0)' : '#e5e7eb',
+                                color: gender === 'female' ? 'var(--red)' : '#6b7280',
+                                border: 'none',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            נקבה
+                        </button>
+                    </div>
+
+                    <button onClick={() => send(displayText || card.textMale, gender)} className="mx-auto px-8 py-3 rounded-full flex items-center justify-center gap-3 text-xl font-bold shadow-2xl hover:shadow-pink-500/50 hover:scale-105 transition-all duration-300" style={{background:`linear-gradient(135deg,var(--pink),var(--red))`, boxShadow: '0 10px 40px rgba(244, 97, 103, 0.4)'}}>
+                        <span style={{color: 'var(--white)'}}>שלח את האגרת</span>
+                        <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                            <img src="./assets/images/אייקון-שליחה-לבן.png" className="w-8 h-8" alt="" />
+                        </div>
+                    </button>
+                </div>
+            </div>;
+
+            if(screen==='create') return <div className="min-h-screen p-4" style={{background:'linear-gradient(135deg,var(--beige),var(--white))'}}>
+                <div className="max-w-md mx-auto pt-8">
+                    <h1 className="text-3xl font-bold text-center mb-6" style={{color:'var(--red)'}}>צור אגרת</h1>
+                    <div className="custom-card">
+                        <div style={{width:'100%', display:'flex', alignItems:'center', justifyContent:'center', minHeight:'140px'}}>
+                            <textarea
+                                value={text}
+                                onChange={(e) => {if(e.target.value.length <= 120) setText(e.target.value);}}
+                                placeholder="כתוב כאן למה חבר שלך מלשין"
+                                maxLength={120}
+                                className="w-full bg-transparent border-none outline-none text-xl font-bold numbers-font resize-none"
+                                style={{
+                                    color:'var(--red)',
+                                    textAlign:'center',
+                                    lineHeight:'1.5',
+                                    overflow:'hidden',
+                                    scrollbarWidth:'none',
+                                    msOverflowStyle:'none',
+                                    wordWrap:'break-word',
+                                    wordBreak:'break-word',
+                                    whiteSpace:'pre-wrap'
+                                }}
+                                rows={5}
+                            />
+                        </div>
+                    </div>
+                    <div className="text-base text-center mb-4 font-bold numbers-font" style={{color:'var(--red)', direction:'ltr'}}>
+                        <span style={{fontFamily:'GveretLevin'}}>{text.length}</span>
+                        <span style={{fontFamily:'OHNivRaviv'}}>/</span>
+                        <span style={{fontFamily:'GveretLevin'}}>120</span>
+                        <span style={{fontFamily:'OHNivRaviv'}}> תווים</span>
+                    </div>
+                    <div className="flex gap-4 justify-center items-center">
+                        <button
+                            onClick={() => text.trim() ? send(text) : alert('כתוב משהו קודם!')}
+                            className="hover:scale-110 transition-transform"
+                            style={{background:'none', border:'none', padding:0, cursor:'pointer'}}
+                        >
+                            <img src="./assets/images/אייקון-שליחה.png" className="w-16 h-16 object-contain" alt="שלח" />
+                        </button>
+                        <button
+                            onClick={() => setText('')}
+                            className="hover:scale-110 transition-transform"
+                            style={{background:'none', border:'none', padding:0, cursor:'pointer'}}
+                        >
+                            <img src="./assets/images/אייקון-פח.png" className="w-16 h-16 object-contain" alt="מחק" />
+                        </button>
+                    </div>
+                    <button onClick={() => setScreen('home')} className="w-full mt-6 text-center hover:opacity-70 text-lg" style={{color:'var(--red)'}}>◀ חזרה למסך הראשי</button>
+                </div>
+            </div>;
+
+            if(screen==='send') return <div className="min-h-screen p-4" style={{background:'linear-gradient(135deg,var(--beige),var(--white))'}}>
+                <div className="max-w-md mx-auto pt-8 text-center">
+                    <div className="mb-4 flex justify-center">
+						<img src="./assets/images/אייקון-וי.png" alt="וי" className="w-24 h-24" />
+					</div>
+                    <h1 className="text-3xl font-bold mb-4" style={{color:'var(--red)'}}>האגרת מוכנה יאגדה</h1>
+                    <p className="text-xl mb-8" style={{color:'var(--dark)'}}>עכשיו תוכל לשלוח אותה לחבר השוטר</p>
+                    <button onClick={() => wa(cardId)} className="w-full bg-green-500 text-white p-4 rounded-full text-xl font-bold shadow-lg hover:scale-105 transition mb-4">שלח בוואטסאפ</button>
+                    <button onClick={() => {navigator.clipboard.writeText(link(cardId)); alert('הלינק הועתק!');}} className="w-full bg-blue-500 text-white p-4 rounded-full text-xl font-bold shadow-lg hover:scale-105 transition mb-8">העתק לינק</button>
+                    <button onClick={() => {setScreen('home'); setText(''); setCard(null);}} className="text-lg hover:opacity-70" style={{color:'var(--red)'}}>◀ חזרה למסך הראשי</button>
+                </div>
+            </div>;
+
+            if(screen==='view') { const isFemale = viewGender === 'female'; return <div className="min-h-screen p-4 relative overflow-hidden" style={{background:'linear-gradient(135deg,var(--beige),var(--white))'}}>
+                <FloatingHearts count={30} />
+                <div className="max-w-md mx-auto pt-12 relative z-10">
+                    <h1 className="text-3xl font-bold text-center mb-8" style={{color:'var(--red)'}}>{isFemale ? 'קיבלת אגרת ברכה ישמאלנית' : 'קיבלת אגרת ברכה ישמאלני'}</h1>
+                    <Envelope isOpen={open} onOpen={() => setOpen(true)}>{card && <CardDisplay text={card.text} />}</Envelope>
+                    {open && <div className="mt-12 space-y-4">
+                        {!thanksOpen && <button onClick={() => setThanksOpen(true)} className="w-full p-4 rounded-full text-xl font-bold text-white shadow-lg hover:scale-105 transition" style={{background:`linear-gradient(135deg,var(--pink),var(--red))`}}>
+                            {isFemale ? 'תכבדי בתודה' : 'תכבד בתודה'}
+                        </button>}
+
+                        {thanksOpen && <div className="space-y-3">
+                            <p className="text-center font-bold text-lg" style={{color:'var(--red)'}}>{isFemale ? 'בחרי תודה לשלוח:' : 'בחר תודה לשלוח:'}</p>
+                            <div className="flex flex-col gap-2">
+                                {thanks.map((t,i) => <button key={i} onClick={() => pickThank(t)} className="w-full p-3 rounded-2xl text-base font-bold text-center shadow hover:scale-[1.02] transition" style={{background:'var(--white)', color:'var(--red)', border:'2px solid var(--pink)'}}>{t}</button>)}
+                            </div>
+                        </div>}
+
+                        <button onClick={() => window.location.href = window.location.pathname} className="w-full p-4 rounded-full text-xl font-bold text-white shadow-lg hover:scale-105 transition" style={{background:'linear-gradient(135deg,#a855f7,#ec4899)'}}>{isFemale ? 'שלחי אגרת בעצמך' : 'שלח אגרת בעצמך'}</button>
+                    </div>}
+                </div>
+            </div>; }
+
+            if(screen==='thankSend') return <div className="min-h-screen p-4" style={{background:'linear-gradient(135deg,var(--beige),var(--white))'}}>
+                <div className="max-w-md mx-auto pt-8 text-center">
+                    <div className="mb-4 flex justify-center">
+                        <img src="./assets/images/אייקון-וי.png" alt="וי" className="w-24 h-24 object-contain" />
+                    </div>
+                    <h1 className="text-3xl font-bold mb-4" style={{color:'var(--red)'}}>התודה מוכנה לשליחה!</h1>
+                    <div className="custom-card mb-8"><div className="centered-text text-xl font-bold numbers-font" style={{color:'var(--red)'}}>{selectedThanks}</div></div>
+                    <button onClick={() => waThank(thankId)} className="w-full bg-green-500 text-white p-4 rounded-full text-xl font-bold shadow-lg hover:scale-105 transition mb-4">שלח בוואטסאפ</button>
+                    <button onClick={() => {navigator.clipboard.writeText(thankLink(thankId)); alert('הלינק הועתק!');}} className="w-full bg-blue-500 text-white p-4 rounded-full text-xl font-bold shadow-lg hover:scale-105 transition mb-8">העתק לינק</button>
+                    <button onClick={() => {setScreen('home'); setText(''); setCard(null);}} className="text-lg hover:opacity-70" style={{color:'var(--red)'}}>◀ חזרה למסך הראשי</button>
+                </div>
+            </div>;
+
+            if(screen==='thankView') return <div className="min-h-screen p-4 relative overflow-hidden" style={{background:'linear-gradient(135deg,var(--beige),var(--white))'}}>
+                <FloatingHearts count={30} />
+                <div className="max-w-md mx-auto pt-12 relative z-10 text-center">
+                    <h1 className="text-3xl font-bold text-center" style={{color:'var(--red)'}}>קיבלת תודה!</h1>
+                    <p className="text-sm text-center mb-8 opacity-70" style={{color:'var(--red)'}}>אולי אתה לא כזה בור של חרא</p>
+                    <div className="custom-card mb-8"><div className="centered-text text-xl font-bold numbers-font" style={{color:'var(--red)'}}>{thankText}</div></div>
+                    <button onClick={() => {setScreen('home');}} className="w-full p-4 rounded-full text-xl font-bold text-white shadow-lg hover:scale-105 transition" style={{background:'linear-gradient(135deg,#a855f7,#ec4899)'}}>שלח אגרת בעצמך</button>
+                </div>
+            </div>;
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>

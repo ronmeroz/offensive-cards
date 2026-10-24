@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ניהול - אגרות פוגעניות</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+    <style>
+        @font-face { font-family: 'OHNivRaviv'; src: url('./assets/fonts/OHNivRaviv-Regular.woff2') format('woff2'); }
+        body { margin: 0; padding: 0; font-family: 'OHNivRaviv', sans-serif; }
+        :root { --pink: #f46167; --red: #cf726a; --beige: #f9dec9; --white: #f9fcea; --dark: #5C2C31; }
+        textarea, input { font-family: 'OHNivRaviv', sans-serif; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const {useState, useEffect} = React;
+
+        const SUPABASE_URL = 'https://enyibfygdrzripwkxuui.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVueWliZnlnZHJ6cmlwd2t4dXVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4NzYyOTEsImV4cCI6MjEwODQ1MjI5MX0.a1wfPAqlZWYxdgg8leN1f6KLXm7RtdLMH4hFATVhjsk';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        function App() {
+            const [session, setSession] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+            const [loginError, setLoginError] = useState('');
+            const [loggingIn, setLoggingIn] = useState(false);
+
+            const [cards, setCards] = useState([]);
+            const [thanks, setThanks] = useState([]);
+            const [newMale, setNewMale] = useState('');
+            const [newFemale, setNewFemale] = useState('');
+            const [newThank, setNewThank] = useState('');
+            const [tab, setTab] = useState('cards');
+            const [busy, setBusy] = useState(false);
+
+            useEffect(() => {
+                supabase.auth.getSession().then(({data}) => { setSession(data.session); setLoading(false); });
+                const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
+                return () => sub.subscription.unsubscribe();
+            }, []);
+
+            useEffect(() => { if(session) loadAll(); }, [session]);
+
+            const loadAll = async () => {
+                const { data: c } = await supabase.from('cards').select('*').order('created_at', {ascending:false});
+                setCards(c || []);
+                const { data: t } = await supabase.from('thanks').select('*').order('created_at', {ascending:false});
+                setThanks(t || []);
+            };
+
+            const login = async (e) => {
+                e.preventDefault();
+                setLoginError('');
+                setLoggingIn(true);
+                const { error } = await supabase.auth.signInWithPassword({ email, password });
+                setLoggingIn(false);
+                if (error) setLoginError('אימייל או סיסמה שגויים');
+            };
+
+            const logout = () => supabase.auth.signOut();
+
+            const addCard = async () => {
+                if(!newMale.trim() || !newFemale.trim()) { alert('צריך למלא גם נוסח בזכר וגם נוסח בנקבה'); return; }
+                setBusy(true);
+                const { error } = await supabase.from('cards').insert({ text_male: newMale.trim(), text_female: newFemale.trim() });
+                setBusy(false);
+                if(error) { alert('שגיאה בהוספה: ' + error.message); return; }
+                setNewMale(''); setNewFemale('');
+                loadAll();
+            };
+
+            const deleteCard = async (id) => {
+                if(!confirm('למחוק את האגרת הזו? אי אפשר לשחזר.')) return;
+                await supabase.from('cards').delete().eq('id', id);
+                loadAll();
+            };
+
+            const addThank = async () => {
+                if(!newThank.trim()) return;
+                setBusy(true);
+                const { error } = await supabase.from('thanks').insert({ text: newThank.trim() });
+                setBusy(false);
+                if(error) { alert('שגיאה בהוספה: ' + error.message); return; }
+                setNewThank('');
+                loadAll();
+            };
+
+            const deleteThank = async (id) => {
+                if(!confirm('למחוק את התודה הזו? אי אפשר לשחזר.')) return;
+                await supabase.from('thanks').delete().eq('id', id);
+                loadAll();
+            };
+
+            if (loading) return <div style={{minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--red)'}}>טוען...</div>;
+
+            if (!session) return <div className="min-h-screen flex items-center justify-center p-4" style={{background:'linear-gradient(135deg,var(--beige),var(--white))'}}>
+                <form onSubmit={login} className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm">
+                    <h1 className="text-2xl font-bold mb-6 text-center" style={{color:'var(--red)'}}>כניסה לניהול</h1>
+                    <input type="email" placeholder="אימייל" value={email} onChange={e=>setEmail(e.target.value)} className="w-full border rounded-lg p-3 mb-3" style={{borderColor:'#ddd'}} required />
+                    <input type="password" placeholder="סיסמה" value={password} onChange={e=>setPassword(e.target.value)} className="w-full border rounded-lg p-3 mb-3" style={{borderColor:'#ddd'}} required />
+                    {loginError && <p className="text-sm mb-3" style={{color:'#dc2626'}}>{loginError}</p>}
+                    <button type="submit" disabled={loggingIn} className="w-full p-3 rounded-lg text-white font-bold" style={{background:'linear-gradient(135deg,var(--pink),var(--red))', opacity: loggingIn?0.6:1}}>{loggingIn ? 'מתחבר...' : 'התחבר'}</button>
+                </form>
+            </div>;
+
+            return <div className="min-h-screen p-4" style={{background:'linear-gradient(135deg,var(--beige),var(--white))'}}>
+                <div className="max-w-2xl mx-auto pb-16">
+                    <div className="flex justify-between items-center py-6">
+                        <h1 className="text-2xl sm:text-3xl font-bold" style={{color:'var(--red)'}}>ניהול אגרות פוגעניות</h1>
+                        <button onClick={logout} className="text-sm underline shrink-0" style={{color:'var(--red)'}}>התנתק</button>
+                    </div>
+
+                    <div className="flex gap-3 mb-6">
+                        <button onClick={()=>setTab('cards')} className="px-5 py-2 rounded-full font-bold transition" style={{background: tab==='cards'?'var(--red)':'#e5e7eb', color: tab==='cards'?'white':'#555'}}>אגרות ({cards.length})</button>
+                        <button onClick={()=>setTab('thanks')} className="px-5 py-2 rounded-full font-bold transition" style={{background: tab==='thanks'?'var(--red)':'#e5e7eb', color: tab==='thanks'?'white':'#555'}}>תודות ({thanks.length})</button>
+                    </div>
+
+                    {tab === 'cards' && <div>
+                        <div className="bg-white rounded-2xl shadow p-5 mb-6">
+                            <h2 className="font-bold mb-3" style={{color:'var(--red)'}}>הוספת אגרת חדשה</h2>
+                            <label className="block text-sm mb-1 font-bold" style={{color:'var(--dark)'}}>נוסח בלשון זכר</label>
+                            <textarea value={newMale} onChange={e=>setNewMale(e.target.value)} rows={3} className="w-full border rounded-lg p-3 mb-3" style={{borderColor:'#ddd'}} placeholder="לדוגמה: מזל טוב על החתונה!..." />
+                            <label className="block text-sm mb-1 font-bold" style={{color:'var(--dark)'}}>נוסח בלשון נקבה</label>
+                            <textarea value={newFemale} onChange={e=>setNewFemale(e.target.value)} rows={3} className="w-full border rounded-lg p-3 mb-3" style={{borderColor:'#ddd'}} placeholder="אותו טקסט, מותאם לנקבה" />
+                            <button onClick={addCard} disabled={busy} className="px-6 py-2 rounded-full text-white font-bold" style={{background:'linear-gradient(135deg,var(--pink),var(--red))', opacity: busy?0.6:1}}>+ הוסף אגרת</button>
+                        </div>
+                        <div className="space-y-3">
+                            {cards.map(c => <div key={c.id} className="bg-white rounded-xl shadow p-4 flex justify-between items-start gap-3">
+                                <div className="flex-1 min-w-0">
+                                    <p className="whitespace-pre-wrap text-sm mb-1 break-words"><b>זכר:</b> {c.text_male}</p>
+                                    <p className="whitespace-pre-wrap text-sm opacity-70 break-words"><b>נקבה:</b> {c.text_female}</p>
+                                </div>
+                                <button onClick={()=>deleteCard(c.id)} className="font-bold shrink-0" style={{color:'#dc2626'}}>מחק</button>
+                            </div>)}
+                            {cards.length===0 && <p className="text-center opacity-50 py-8">אין עדיין אגרות</p>}
+                        </div>
+                    </div>}
+
+                    {tab === 'thanks' && <div>
+                        <div className="bg-white rounded-2xl shadow p-5 mb-6">
+                            <h2 className="font-bold mb-3" style={{color:'var(--red)'}}>הוספת תודה חדשה</h2>
+                            <textarea value={newThank} onChange={e=>setNewThank(e.target.value)} rows={2} className="w-full border rounded-lg p-3 mb-3" style={{borderColor:'#ddd'}} placeholder="לדוגמה: תודה... אני חושב." />
+                            <button onClick={addThank} disabled={busy} className="px-6 py-2 rounded-full text-white font-bold" style={{background:'linear-gradient(135deg,var(--pink),var(--red))', opacity: busy?0.6:1}}>+ הוסף תודה</button>
+                        </div>
+                        <div className="space-y-3">
+                            {thanks.map(t => <div key={t.id} className="bg-white rounded-xl shadow p-4 flex justify-between items-center gap-3">
+                                <p className="text-sm break-words">{t.text}</p>
+                                <button onClick={()=>deleteThank(t.id)} className="font-bold shrink-0" style={{color:'#dc2626'}}>מחק</button>
+                            </div>)}
+                            {thanks.length===0 && <p className="text-center opacity-50 py-8">אין עדיין תודות</p>}
+                        </div>
+                    </div>}
+                </div>
+            </div>;
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
