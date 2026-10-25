@@ -18,6 +18,7 @@
         @keyframes heart-float { 0%,100% { transform: translate(0,0) rotate(0deg); } 25% { transform: translate(30px,-40px) rotate(10deg); } 50% { transform: translate(-20px,-70px) rotate(-5deg); } 75% { transform: translate(40px,-50px) rotate(8deg); } }
         @keyframes bounce-in { 0% { transform: scale(0); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
         @keyframes envelope-open { 0% { transform: translateY(0) rotateX(0deg); } 100% { transform: translateY(-80px) rotateX(180deg); opacity: 0; } }
+        @keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
         @keyframes card-appear { 0% { transform: translateY(100px) scale(0.8); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
         .custom-card { background: url('./assets/images/card-frame.png') center/100% 100% no-repeat; min-height: 220px; padding: 40px 35px; display: flex; align-items: center; justify-content: center; }
         .centered-text { text-align: center; line-height: 1.8; word-wrap: break-word; overflow-wrap: break-word; }
@@ -320,20 +321,24 @@
                         <Envelope key={cardId} isOpen={open} onOpen={() => setOpen(true)}>{card && <CardDisplay text={card.text} />}</Envelope>
                     </div>
                     {open && <div className="shrink-0 space-y-3 pb-2">
-                        {!thanksOpen && <button onClick={() => setThanksOpen(true)} className="w-full p-3 rounded-full text-lg font-bold text-white shadow-lg hover:scale-105 transition" style={{background:`linear-gradient(135deg,var(--pink),var(--red))`}}>
+                        <button onClick={() => setThanksOpen(true)} className="w-full p-3 rounded-full text-lg font-bold text-white shadow-lg active:scale-95 transition" style={{background:`linear-gradient(135deg,var(--pink),var(--red))`}}>
                             {isFemale ? 'תכבדי בתודה' : 'תכבד בתודה'}
-                        </button>}
-
-                        {thanksOpen && <div className="space-y-2">
-                            <p className="text-center font-bold text-base" style={{color:'var(--red)'}}>{isFemale ? 'בחרי תודה לשלוח:' : 'בחר תודה לשלוח:'}</p>
-                            <div className="flex flex-col gap-2 max-h-40 overflow-y-auto">
-                                {thanks.map((t,i) => <button key={i} onClick={() => pickThank(t)} className="w-full p-2.5 rounded-2xl text-sm font-bold text-center shadow hover:scale-[1.02] transition shrink-0" style={{background:'var(--white)', color:'var(--red)', border:'2px solid var(--pink)'}}>{t}</button>)}
-                            </div>
-                        </div>}
+                        </button>
 
                         <button onClick={() => window.location.href = window.location.pathname} className="w-full p-3 rounded-full text-lg font-bold text-white shadow-lg hover:scale-105 transition" style={{background:'linear-gradient(135deg,#a855f7,#ec4899)'}}>{isFemale ? 'שלחי אגרת בעצמך' : 'שלח אגרת בעצמך'}</button>
                     </div>}
                 </div>
+                {thanksOpen && <div className="fixed inset-0 z-50 flex items-end justify-center" style={{background:'rgba(92,44,49,0.45)', touchAction:'none'}} onClick={() => setThanksOpen(false)}>
+                    <div className="w-full max-w-md rounded-t-3xl p-4 pb-6 flex flex-col" style={{background:'var(--white)', maxHeight:'75dvh', touchAction:'auto', animation:'sheet-up 0.3s ease-out'}} onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-3 shrink-0">
+                            <p className="font-bold text-lg" style={{color:'var(--red)'}}>{isFemale ? 'בחרי תודה לשלוח:' : 'בחר תודה לשלוח:'}</p>
+                            <button onClick={() => setThanksOpen(false)} className="text-2xl leading-none px-2" style={{color:'var(--red)'}} aria-label="סגור">✕</button>
+                        </div>
+                        <div className="flex flex-col gap-2 overflow-y-auto overflow-x-hidden" style={{overscrollBehavior:'contain', WebkitOverflowScrolling:'touch'}}>
+                            {thanks.map((t,i) => <button key={i} onClick={() => pickThank(t)} className="w-full p-3 rounded-2xl text-base font-bold text-center shadow active:scale-95 transition shrink-0" style={{background:'white', color:'var(--red)', border:'2px solid var(--pink)'}}>{t}</button>)}
+                        </div>
+                    </div>
+                </div>}
             </div>; }
 
             if(screen==='thankSend') return <div className="min-h-screen p-4" style={{background:'linear-gradient(135deg,var(--beige),var(--white))'}}>
