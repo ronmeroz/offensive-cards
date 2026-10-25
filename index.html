@@ -19,6 +19,7 @@
         @keyframes bounce-in { 0% { transform: scale(0); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
         @keyframes envelope-open { 0% { transform: translateY(0) rotateX(0deg); } 100% { transform: translateY(-80px) rotateX(180deg); opacity: 0; } }
         @keyframes toast-in { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes fade-up { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
         @keyframes card-appear { 0% { transform: translateY(100px) scale(0.8); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
         .custom-card { background: url('./assets/images/card-frame.png') center/100% 100% no-repeat; min-height: 220px; padding: 40px 35px; display: flex; align-items: center; justify-content: center; }
@@ -66,20 +67,111 @@
 
         const BackTriangle = () => <span aria-hidden="true" style={{display:'inline-block', width:0, height:0, borderTop:'7px solid transparent', borderBottom:'7px solid transparent', borderRight:'11px solid var(--red)'}} />;
 
-        const Envelope = ({isOpen, onOpen, children}) => {
-            const [show, setShow] = useState(false);
+        // ---- מעטפה: אנימציית פתיחה (פריימים מהסרטון) + הכרטיס שיוצא מהכיס ----
+        const ENV = { frames: 60, fps: 30, cw: 470, ch: 440, k: 0.82 };
+        const envImgs = [];
+        let envPreloaded = false;
+        const preloadEnvelope = () => {
+            if(envPreloaded) return;
+            envPreloaded = true;
+            for(let i = 0; i < ENV.frames; i++) {
+                const im = new Image();
+                im.src = `./assets/images/envelope-anim/f${String(i).padStart(2,'0')}.webp`;
+                envImgs[i] = im;
+            }
+            const pk = new Image(); pk.src = './assets/images/envelope-anim/pocket.png';
+        };
+
+        const Envelope = ({isOpen, onOpen, onDone, children}) => {
+            const rootRef = useRef(null);
+            const cvRef = useRef(null);
+            const doneRef = useRef(onDone);
+            doneRef.current = onDone;
+            const [W, setW] = useState(320);
+            const [phase, setPhase] = useState('closed'); // closed | opening | rising | out
+
+            const drawFrame = (i) => {
+                const cv = cvRef.current;
+                if(!cv) return;
+                for(let k = i; k >= 0; k--) {
+                    const im = envImgs[k];
+                    if(im && im.complete && im.naturalWidth) {
+                        const ctx = cv.getContext('2d');
+                        ctx.clearRect(0, 0, ENV.cw, ENV.ch);
+                        ctx.drawImage(im, 0, 0);
+                        return;
+                    }
+                }
+            };
+
+            // התאמת גודל לשטח הפנוי + טעינת הפריימים + ציור הפריים הראשון (מעטפה סגורה)
             useEffect(() => {
-                if(!isOpen) { setShow(false); return; }
-                const t = setTimeout(() => setShow(true), 1200);
-                return () => clearTimeout(t);
+                preloadEnvelope();
+                const el = rootRef.current;
+                const calc = () => {
+                    const r = el.getBoundingClientRect();
+                    setW(Math.max(240, Math.min(r.width, r.height * ENV.cw / ENV.ch, 448)));
+                };
+                calc();
+                const ro = new ResizeObserver(calc);
+                ro.observe(el);
+                const first = envImgs[0];
+                const draw0 = () => drawFrame(0);
+                if(first.complete && first.naturalWidth) draw0(); else first.addEventListener('load', draw0);
+                return () => { ro.disconnect(); first.removeEventListener('load', draw0); };
+            }, []);
+
+            // ציר הזמן של הפתיחה: דש נפתח -> הכרטיס עולה מהכיס -> הכרטיס יוצא והמעטפה נעלמת
+            useEffect(() => {
+                if(!isOpen) { setPhase('closed'); return; }
+                if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                    setPhase('out'); doneRef.current && doneRef.current(); return;
+                }
+                setPhase('opening');
+                const t0 = performance.now();
+                let raf;
+                const loop = (now) => {
+                    const i = Math.min(ENV.frames - 1, Math.floor((now - t0) / 1000 * ENV.fps));
+                    drawFrame(i);
+                    if(i < ENV.frames - 1) raf = requestAnimationFrame(loop);
+                };
+                raf = requestAnimationFrame(loop);
+                const t1 = setTimeout(() => setPhase('rising'), 1500);
+                const t2 = setTimeout(() => setPhase('out'), 2450);
+                const t3 = setTimeout(() => doneRef.current && doneRef.current(), 3300);
+                return () => { cancelAnimationFrame(raf); clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
             }, [isOpen]);
-            return <div className="relative w-full h-full max-w-md mx-auto" style={{maxHeight:'340px'}} onClick={!isOpen?onOpen:null}>
-                {!isOpen && <div className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer">
-                    <img src="./assets/images/מעטפה-סגורה.png" className="max-w-full w-auto hover:scale-105 transition" style={{maxHeight:'calc(100% - 28px)'}} />
-                    <p className="mt-2 text-base sm:text-lg font-bold" style={{color:'var(--red)'}}>לחץ כדי לפתוח</p>
-                </div>}
-                {isOpen && !show && <img src="./assets/images/מעטפה-פתוחה.png" className="absolute inset-0 m-auto max-w-full max-h-full w-auto h-auto" style={{animation:'envelope-open 1.2s forwards'}} />}
-                {show && <div className="absolute inset-0 flex items-center justify-center" style={{animation:'card-appear 1s forwards', opacity:0}}>{children}</div>}
+
+            const s = W / ENV.cw, k = ENV.k, Hs = ENV.ch * s;
+            const slideDown = `${-(1 + k) * 50}%`;
+            const peekY = `calc(${slideDown} + ${171 * s}px)`;
+            const hiddenY = `calc(${-(1 + k) * 50 + 95 * k}% + ${171 * s}px)`;
+            const cardTransform = phase === 'out' ? 'translate(-50%, -50%) scale(1)'
+                : phase === 'rising' ? `translate(-50%, ${peekY}) scale(${k})`
+                : `translate(-50%, ${hiddenY}) scale(${k})`;
+            const cardTransition = phase === 'out' ? 'transform 700ms cubic-bezier(.22,.8,.25,1) 120ms'
+                : phase === 'rising' ? 'transform 900ms cubic-bezier(.22,.8,.25,1), opacity 150ms' : 'none';
+            const envGone = phase === 'out';
+            const envFade = {opacity: envGone ? 0 : 1, transform: envGone ? `translateY(${30 * s}px)` : 'none', transition: envGone ? 'opacity 320ms ease-out, transform 450ms ease-in' : 'none'};
+
+            return <div ref={rootRef} className="relative w-full h-full max-w-md mx-auto flex items-center justify-center" style={{maxHeight:'460px'}} onClick={!isOpen ? onOpen : undefined}>
+                <div className={`relative ${phase==='closed' ? 'cursor-pointer hover:scale-[1.03] transition-transform' : ''}`} style={{width: W, height: Hs}}>
+                    <p className="absolute left-0 right-0 text-center font-bold text-lg sm:text-xl pointer-events-none" style={{top: 70 * s, color:'var(--red)', opacity: phase==='closed' ? 1 : 0, transition:'opacity 300ms'}}>לחץ כדי לפתוח</p>
+
+                    <div className="absolute inset-0 pointer-events-none" style={{zIndex: 1, ...envFade}}>
+                        <canvas ref={cvRef} width={ENV.cw} height={ENV.ch} className="absolute inset-0" style={{width:'100%', height:'100%'}} />
+                    </div>
+
+                    <div className="absolute inset-0 pointer-events-none" style={{zIndex: 2, clipPath: envGone ? 'none' : `inset(-3000px -3000px ${13 * s}px -3000px)`}}>
+                        <div className="absolute" style={{left:'50%', top:'50%', width: W, transform: cardTransform, transition: cardTransition, opacity: (phase==='rising' || phase==='out') ? 1 : 0}}>
+                            {children}
+                        </div>
+                    </div>
+
+                    <div className="absolute inset-0 pointer-events-none" style={{zIndex: 3, ...envFade}}>
+                        <img src="./assets/images/envelope-anim/pocket.png" alt="" className="absolute" style={{left: 12 * s, top: 181 * s, width: 445 * s, height: 'auto', opacity: (phase==='rising' || phase==='out') ? 1 : 0}} />
+                    </div>
+                </div>
             </div>;
         };
 
@@ -97,6 +189,7 @@
             const [card, setCard] = useState(null);
             const [text, setText] = useState('');
             const [open, setOpen] = useState(false);
+            const [done, setDone] = useState(false);
             const [showThanks, setShowThanks] = useState(false);
             const [cardId, setCardId] = useState(null);
             const [hearts, setHearts] = useState([]);
@@ -164,12 +257,12 @@
                 const tid = p.get('thank') || h.get('thank');
                 const req = ++reqRef.current;
                 if(tid) {
-                    setOpen(false); setThanksOpen(false); setThankText(''); setThankId(tid); setScreen('thankView');
+                    setOpen(false); setDone(false); setThanksOpen(false); setThankText(''); setThankId(tid); setScreen('thankView');
                     supabase.from('sent_thanks').select('*').eq('id', tid).single().then(({data}) => {
                         if(data && req === reqRef.current) setThankText(data.text);
                     });
                 } else if(id) {
-                    setOpen(false); setThanksOpen(false); setCard(null); setCardId(id); setScreen('view');
+                    setOpen(false); setDone(false); setThanksOpen(false); setCard(null); setCardId(id); setScreen('view');
                     supabase.from('sent_cards').select('*').eq('id', id).single().then(({data}) => {
                         if(data && req === reqRef.current) { setCard({text:data.text}); setViewGender(data.gender || 'male'); }
                     });
@@ -344,9 +437,9 @@
                 <div className="w-full max-w-md mx-auto relative z-10 flex-1 flex flex-col min-h-0">
                     <h1 className="text-2xl sm:text-3xl font-bold text-center mb-3 sm:mb-6 shrink-0 pt-2" style={{color:'var(--red)'}}>{isFemale ? 'קיבלת אגרת ברכה ישמאלנית' : 'קיבלת אגרת ברכה ישמאלני'}</h1>
                     <div className="flex-1 min-h-0 flex items-center justify-center py-2">
-                        <Envelope key={cardId} isOpen={open} onOpen={() => setOpen(true)}>{card && <CardDisplay text={card.text} />}</Envelope>
+                        <Envelope key={cardId} isOpen={open} onOpen={() => setOpen(true)} onDone={() => setDone(true)}>{card && <CardDisplay text={card.text} />}</Envelope>
                     </div>
-                    {open && <div className="shrink-0 space-y-3 pb-2">
+                    {done && <div className="shrink-0 space-y-3 pb-2" style={{animation:'fade-up 0.4s ease-out'}}>
                         <button onClick={() => setThanksOpen(true)} className="w-full p-3 rounded-full text-lg font-bold text-white shadow-lg active:scale-95 transition" style={{background:`linear-gradient(135deg,var(--pink),var(--red))`}}>
                             {isFemale ? 'תכבדי בתודה' : 'תכבד בתודה'}
                         </button>
@@ -388,9 +481,9 @@
                         <p className="text-sm text-center mt-1 opacity-70" style={{color:'var(--red)'}}>אולי אתה לא כזה בור של חרא</p>
                     </div>
                     <div className="flex-1 min-h-0 flex items-center justify-center py-2">
-                        <Envelope key={thankId} isOpen={open} onOpen={() => setOpen(true)}><div className="custom-card"><div className="centered-text text-xl font-bold numbers-font" style={{color:'var(--red)'}}>{thankText}</div></div></Envelope>
+                        <Envelope key={thankId} isOpen={open} onOpen={() => setOpen(true)} onDone={() => setDone(true)}><div className="custom-card"><div className="centered-text text-xl font-bold numbers-font" style={{color:'var(--red)'}}>{thankText}</div></div></Envelope>
                     </div>
-                    {open && <div className="shrink-0 pb-2">
+                    {done && <div className="shrink-0 pb-2" style={{animation:'fade-up 0.4s ease-out'}}>
                         <button onClick={() => {setScreen('home');}} className="w-full p-3 rounded-full text-lg font-bold text-white shadow-lg hover:scale-105 transition" style={{background:'linear-gradient(135deg,#a855f7,#ec4899)'}}>שלח אגרת בעצמך</button>
                     </div>}
                 </div>
