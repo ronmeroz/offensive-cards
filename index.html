@@ -27,7 +27,7 @@
 <body>
     <div id="root"></div>
     <script type="text/babel">
-        const {useState, useEffect} = React;
+        const {useState, useEffect, useRef} = React;
 
         const SUPABASE_URL = 'https://enyibfygdrzripwkxuui.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVueWliZnlnZHJ6cmlwd2t4dXVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4NzYyOTEsImV4cCI6MjEwODQ1MjI5MX0.a1wfPAqlZWYxdgg8leN1f6KLXm7RtdLMH4hFATVhjsk';
@@ -48,7 +48,11 @@
 
         const Envelope = ({isOpen, onOpen, children}) => {
             const [show, setShow] = useState(false);
-            useEffect(() => { if(isOpen) setTimeout(() => setShow(true), 1200); }, [isOpen]);
+            useEffect(() => {
+                if(!isOpen) { setShow(false); return; }
+                const t = setTimeout(() => setShow(true), 1200);
+                return () => clearTimeout(t);
+            }, [isOpen]);
             return <div className="relative w-full h-full max-w-md mx-auto" style={{maxHeight:'340px'}} onClick={!isOpen?onOpen:null}>
                 {!isOpen && <div className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer">
                     <img src="./assets/images/מעטפה-סגורה.png" className="max-w-full w-auto hover:scale-105 transition" style={{maxHeight:'calc(100% - 28px)'}} />
@@ -124,23 +128,38 @@
             const [thankText, setThankText] = useState('');
 
             // טעינת אגרת/תודה שנשלחה אלינו, ישירות ממסד הנתונים (עובד לכל אחד, לא רק למי ששלח)
-            useEffect(() => {
+            // רץ גם בטעינה ראשונה וגם בכל פעם שהלינק (ה-hash) משתנה בלי רענון דף
+            const reqRef = useRef(0);
+            const loadFromUrl = () => {
                 const p = new URLSearchParams(window.location.search);
                 const h = new URLSearchParams(window.location.hash.substring(1));
                 const id = p.get('card') || h.get('card');
                 const tid = p.get('thank') || h.get('thank');
+                const req = ++reqRef.current;
                 if(tid) {
-                    setThankId(tid); setScreen('thankView');
+                    setOpen(false); setThanksOpen(false); setThankText(''); setThankId(tid); setScreen('thankView');
                     supabase.from('sent_thanks').select('*').eq('id', tid).single().then(({data}) => {
-                        if(data) setThankText(data.text);
+                        if(data && req === reqRef.current) setThankText(data.text);
                     });
                 } else if(id) {
-                    setCardId(id); setScreen('view');
+                    setOpen(false); setThanksOpen(false); setCard(null); setCardId(id); setScreen('view');
                     supabase.from('sent_cards').select('*').eq('id', id).single().then(({data}) => {
-                        if(data) { setCard({text:data.text}); setViewGender(data.gender || 'male'); }
+                        if(data && req === reqRef.current) { setCard({text:data.text}); setViewGender(data.gender || 'male'); }
                     });
                 }
+            };
+            useEffect(() => {
+                loadFromUrl();
+                window.addEventListener('hashchange', loadFromUrl);
+                return () => window.removeEventListener('hashchange', loadFromUrl);
             }, []);
+
+            // כשעוזבים מסך צפייה - מנקים את הלינק מהכתובת, כדי שלחיצה חוזרת על אותו לינק תעבוד
+            useEffect(() => {
+                if(screen !== 'view' && screen !== 'thankView' && window.location.hash) {
+                    history.replaceState(null, '', window.location.pathname + window.location.search);
+                }
+            }, [screen]);
 
             const save = async (t, g) => {
                 const { data, error } = await supabase.from('sent_cards').insert({text:t, gender:g || 'male'}).select().single();
@@ -174,7 +193,7 @@
                 </div>
                 <div className="relative z-10 text-center mb-8">
                     <p className="text-base opacity-60" style={{color:'var(--red)'}}>לחץ בכל מקום להמשיך</p>
-                    <p className="text-xs mt-2 opacity-50" style={{color:'var(--dark)'}}>פותח על ידי רון מרוז ואסף יצחקי</p>
+                    <p className="text-xs mt-2 opacity-50" style={{color:'var(--dark)'}}>פותח על ידי רון מרוז</p>
                 </div>
             </div>;
 
@@ -298,7 +317,7 @@
                 <div className="w-full max-w-md mx-auto relative z-10 flex-1 flex flex-col min-h-0">
                     <h1 className="text-2xl sm:text-3xl font-bold text-center mb-3 sm:mb-6 shrink-0 pt-2" style={{color:'var(--red)'}}>{isFemale ? 'קיבלת אגרת ברכה ישמאלנית' : 'קיבלת אגרת ברכה ישמאלני'}</h1>
                     <div className="flex-1 min-h-0 flex items-center justify-center py-2">
-                        <Envelope isOpen={open} onOpen={() => setOpen(true)}>{card && <CardDisplay text={card.text} />}</Envelope>
+                        <Envelope key={cardId} isOpen={open} onOpen={() => setOpen(true)}>{card && <CardDisplay text={card.text} />}</Envelope>
                     </div>
                     {open && <div className="shrink-0 space-y-3 pb-2">
                         {!thanksOpen && <button onClick={() => setThanksOpen(true)} className="w-full p-3 rounded-full text-lg font-bold text-white shadow-lg hover:scale-105 transition" style={{background:`linear-gradient(135deg,var(--pink),var(--red))`}}>
@@ -333,12 +352,14 @@
             if(screen==='thankView') return <div className="h-[100dvh] p-4 relative overflow-y-auto overflow-x-hidden flex flex-col" style={{background:'linear-gradient(135deg,var(--beige),var(--white))'}}>
                 <FloatingHearts count={30} />
                 <div className="w-full max-w-md mx-auto relative z-10 flex-1 flex flex-col min-h-0 text-center">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-center mb-3 sm:mb-6 shrink-0 pt-2" style={{color:'var(--red)'}}>קיבלת תודה!</h1>
+                    <div className="shrink-0 mb-3 sm:mb-6 pt-2">
+                        <h1 className="text-2xl sm:text-3xl font-bold text-center" style={{color:'var(--red)'}}>קיבלת תודה!</h1>
+                        <p className="text-sm text-center mt-1 opacity-70" style={{color:'var(--red)'}}>אולי אתה לא כזה בור של חרא</p>
+                    </div>
                     <div className="flex-1 min-h-0 flex items-center justify-center py-2">
-                        <Envelope isOpen={open} onOpen={() => setOpen(true)}><div className="custom-card"><div className="centered-text text-xl font-bold numbers-font" style={{color:'var(--red)'}}>{thankText}</div></div></Envelope>
+                        <Envelope key={thankId} isOpen={open} onOpen={() => setOpen(true)}><div className="custom-card"><div className="centered-text text-xl font-bold numbers-font" style={{color:'var(--red)'}}>{thankText}</div></div></Envelope>
                     </div>
                     {open && <div className="shrink-0 pb-2">
-                        <p className="text-sm text-center mb-4 opacity-70" style={{color:'var(--red)'}}>אולי אתה לא כזה בור של חרא</p>
                         <button onClick={() => {setScreen('home');}} className="w-full p-3 rounded-full text-lg font-bold text-white shadow-lg hover:scale-105 transition" style={{background:'linear-gradient(135deg,#a855f7,#ec4899)'}}>שלח אגרת בעצמך</button>
                     </div>}
                 </div>
