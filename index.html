@@ -103,6 +103,7 @@
             const [cards, setCards] = useState([]);
             const [thanks, setThanks] = useState([]);
             const [gender, setGender] = useState('male');
+            const [sentGender, setSentGender] = useState('male');
             const [displayText, setDisplayText] = useState('');
 
             // טעינת מאגר האגרות והתודות ממסד הנתונים
@@ -193,7 +194,7 @@
                 return data.id;
             };
             const link = (id) => `${window.location.origin}${window.location.pathname}#card=${id}`;
-            const cardMsg = (id) => `קיבלת אגרת ברכה יכוזר!\n${link(id)}`;
+            const cardMsg = (id) => `קיבלת אגרת ברכה ${sentGender === 'female' ? 'יכוזרית' : 'יכוזר'}!\n${link(id)}`;
             const thankMsg = (id) => `קיבלת תודה! 💝\n${thankLink(id)}`;
             const wa = (id) => window.open(`https://wa.me/?text=${encodeURIComponent(cardMsg(id))}`, '_blank');
             const saveThank = async (t) => {
@@ -210,7 +211,7 @@
             };
             const send = async (t, g) => {
                 const id = await save(t, g);
-                if(id) { setCardId(id); setScreen('send'); }
+                if(id) { setSentGender(g || 'male'); setCardId(id); setScreen('send'); }
             };
 
             if(screen==='splash') return <div onClick={() => {if(splashTimer) clearTimeout(splashTimer); setScreen('home');}} className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden cursor-pointer" style={{background:'linear-gradient(135deg,var(--beige),var(--white))'}}>
