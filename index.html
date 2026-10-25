@@ -470,9 +470,9 @@
 
             if(screen==='view') { const isFemale = viewGender === 'female'; return <div className="h-[100dvh] p-4 relative overflow-y-auto overflow-x-hidden flex flex-col" style={{background:'linear-gradient(135deg,var(--beige),var(--white))'}}>
                 <FloatingHearts count={30} />
-                <div className="w-full max-w-md mx-auto relative z-10 flex-1 flex flex-col min-h-0">
+                <div className="w-full max-w-md mx-auto relative z-10 flex-1 flex flex-col justify-center min-h-0">
                     <h1 className="text-2xl sm:text-3xl font-bold text-center mb-3 sm:mb-6 shrink-0 pt-2" style={{color:'var(--red)'}}>{isFemale ? 'קיבלת אגרת ברכה ישמאלנית' : 'קיבלת אגרת ברכה ישמאלני'}</h1>
-                    <div className="flex-1 min-h-0 flex items-center justify-center py-2">
+                    <div className="flex items-center justify-center py-2" style={{flex:'0 1 400px', minHeight:0}}>
                         <Envelope key={cardId} isOpen={open} onOpen={() => setOpen(true)} onDone={() => setDone(true)}>{card && <CardDisplay text={card.text} />}</Envelope>
                     </div>
                     <div className="shrink-0 space-y-3 pb-2" style={done ? {animation:'fade-up 0.4s ease-out'} : {visibility:'hidden'}}>
@@ -511,12 +511,12 @@
 
             if(screen==='thankView') return <div className="h-[100dvh] p-4 relative overflow-y-auto overflow-x-hidden flex flex-col" style={{background:'linear-gradient(135deg,var(--beige),var(--white))'}}>
                 <FloatingHearts count={30} />
-                <div className="w-full max-w-md mx-auto relative z-10 flex-1 flex flex-col min-h-0 text-center">
+                <div className="w-full max-w-md mx-auto relative z-10 flex-1 flex flex-col justify-center min-h-0 text-center">
                     <div className="shrink-0 mb-3 sm:mb-6 pt-2">
                         <h1 className="text-2xl sm:text-3xl font-bold text-center" style={{color:'var(--red)'}}>קיבלת תודה!</h1>
                         <p className="text-sm text-center mt-1 opacity-70" style={{color:'var(--red)'}}>אולי אתה לא כזה בור של חרא</p>
                     </div>
-                    <div className="flex-1 min-h-0 flex items-center justify-center py-2">
+                    <div className="flex items-center justify-center py-2" style={{flex:'0 1 400px', minHeight:0}}>
                         <Envelope key={thankId} isOpen={open} onOpen={() => setOpen(true)} onDone={() => setDone(true)}><div className="custom-card"><div className="centered-text text-xl font-bold numbers-font" style={{color:'var(--red)'}}>{thankText}</div></div></Envelope>
                     </div>
                     <div className="shrink-0 pb-2" style={done ? {animation:'fade-up 0.4s ease-out'} : {visibility:'hidden'}}>
