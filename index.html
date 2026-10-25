@@ -71,6 +71,8 @@
         const ENV = { frames: 60, fps: 30, cw: 470, ch: 440, k: 0.82 };
         // המעטפה הסגורה המקורית מותאמת (במיקום ובגודל) לפריים הראשון של הסרטון, כדי שהמעבר ביניהם לא יקפוץ
         const CLOSED = { x: 10, y: 178, sx: 448 / 454, sy: 250 / 264 };
+        // הזזה קבועה כלפי מעלה של כל הסצנה (בלי תנועה בזמן הפתיחה), כדי שהמעטפה הסגורה לא תהיה נמוכה מדי
+        const OFFSET = 42;
         const envImgs = [];
         let envPreloaded = false;
         const preloadEnvelope = () => {
@@ -175,7 +177,7 @@
                 opening: `translate(-50%,-50%) translate(0,${peekDy + 0.95 * k * Hc}px) scale(${k})`,
                 rising:  `translate(-50%,-50%) translate(0,${peekDy}px) scale(${k})`,
                 lift:    `translate(-50%,-50%) translate(0,${liftDy}px) rotate(-1.5deg) scale(${k})`,
-                out:     'translate(-50%,-50%) translate(0,0) rotate(0deg) scale(1)',
+                out:     `translate(-50%,-50%) translate(0,${OFFSET * s}px) rotate(0deg) scale(1)`,
             };
             const cardTransform = cardPose[phase] || cardPose.opening;
             const cardTransition = calm ? 'none'
@@ -188,7 +190,7 @@
                 transition: envGone && !calm ? 'transform 650ms cubic-bezier(.55,0,.8,.4), opacity 320ms ease-in 280ms' : 'none'};
 
             return <div ref={rootRef} className="relative w-full h-full max-w-md mx-auto flex items-center justify-center" style={{maxHeight:'460px'}} onClick={!isOpen ? onOpen : undefined}>
-                <div className={`relative ${phase==='closed' ? 'cursor-pointer' : ''}`} style={{width: W, height: Hs, transform: `translateY(${phase==='closed' ? -84 * s : 0}px)`, transition: phase==='closed' ? 'none' : 'transform 1300ms ease-in-out'}}>
+                <div className={`relative ${phase==='closed' ? 'cursor-pointer' : ''}`} style={{width: W, height: Hs, transform: `translateY(${-OFFSET * s}px)`}}>
                     <p className="absolute left-0 right-0 text-center font-bold text-lg sm:text-xl pointer-events-none" style={{top: 441 * s, color:'var(--red)', opacity: phase==='closed' ? 1 : 0, transition:'opacity 300ms'}}>לחץ כדי לפתוח</p>
 
                     <div className="absolute inset-0 pointer-events-none" style={{zIndex: 1, ...envFade}}>
