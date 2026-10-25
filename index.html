@@ -161,25 +161,25 @@
                 const kA = Math.max(0.6, Math.min(0.82, 196 * s / Hc));   // בשיא היציאה הכרטיס קטן מספיק כדי לא לעלות על הכותרת
                 const apexDy = 196 * s - 0.5 * kA * Hc - 220 * s;   // התחתית של הכרטיס נקייה מהכיס הקדמי
                 const finalDy = OFFSET * s;
-                let y, sc = k;
+                let y, sc = k, depth = 0;
                 if(ms < T.rise) y = hiddenDy;
                 else if(ms < T.up) y = hiddenDy + (peekDy - hiddenDy) * eo(clamp01((ms - T.rise) / (T.up - T.rise)));
                 else if(ms < T.apex) { const q = eio(clamp01((ms - T.up) / (T.apex - T.up))); y = peekDy + (apexDy - peekDy) * q; sc = k + (kA - k) * q; }
                 else {
                     const q = eio(clamp01((ms - T.apex) / (T.end - T.apex)));
                     y = apexDy + (finalDy - apexDy) * q;
-                    sc = kA + (1 - kA) * q;
+                    sc = kA + (1 - kA) * q + 0.1 * Math.sin(Math.PI * q);   // יוצא קדימה אל הצופה ונרגע
+                    depth = Math.sin(Math.PI * q);
                 }
-                const u = clamp01((ms - T.up) / (T.end - T.up));
-                const x = 0.09 * geoRef.current.W * Math.sin(Math.PI * u);
-                const rot = -5 * Math.sin(Math.PI * u);
-                return {y, x, sc, rot, bottom: 220 * s + y + 0.5 * sc * Hc};
+                const x = 0, rot = 0;
+                return {y, x, sc, rot, depth, bottom: 220 * s + y + 0.5 * sc * Hc};
             };
             const applyPose = (ms) => {
                 const el = animRef.current;
                 if(!el) return null;
                 const P = poseAt(ms);
-                el.style.transform = `translate(-50%,-50%) translate(${P.x}px,${P.y}px) rotate(${P.rot}deg) scale(${P.sc})`;
+                el.style.transform = `translate(-50%,-50%) translate(0,${P.y}px) scale(${P.sc})`;
+                el.style.filter = P.depth > 0.02 ? `drop-shadow(0 ${10 * P.depth}px ${16 * P.depth}px rgba(90,40,40,${0.28 * P.depth}))` : 'none';
                 return P;
             };
             geoRef.current = {s: W / ENV.cw, Hc, W};
