@@ -159,8 +159,8 @@
                     {!noOrder && <p className="text-sm mb-4 opacity-70" style={{color:'var(--dark)'}}>הסדר ברשימה הוא הסדר באפליקציה. החצים מזיזים פריט למעלה או למטה, ופריט חדש מתווסף בתחילת הרשימה.</p>}
 
                     <div className="flex gap-3 mb-6">
-                        <button onClick={()=>setTab('cards')} className="px-5 py-2 rounded-full font-bold transition" style={{background: tab==='cards'?'var(--red)':'#e5e7eb', color: tab==='cards'?'white':'#555'}}>אגרות <span className="numbers-font mx-1">{cards.length}</span></button>
-                        <button onClick={()=>setTab('thanks')} className="px-5 py-2 rounded-full font-bold transition" style={{background: tab==='thanks'?'var(--red)':'#e5e7eb', color: tab==='thanks'?'white':'#555'}}>תודות <span className="numbers-font mx-1">{thanks.length}</span></button>
+                        <button onClick={()=>setTab('cards')} className="px-5 py-2 rounded-full font-bold transition" style={{background: tab==='cards'?'var(--red)':'#e5e7eb', color: tab==='cards'?'white':'#555'}}>אגרות (<span className="numbers-font">{cards.length}</span>)</button>
+                        <button onClick={()=>setTab('thanks')} className="px-5 py-2 rounded-full font-bold transition" style={{background: tab==='thanks'?'var(--red)':'#e5e7eb', color: tab==='thanks'?'white':'#555'}}>תודות (<span className="numbers-font">{thanks.length}</span>)</button>
                     </div>
 
                     {tab === 'cards' && <div>
