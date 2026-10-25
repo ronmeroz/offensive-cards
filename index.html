@@ -334,7 +334,7 @@
                     <h1 className="text-3xl font-bold mb-4" style={{color:'var(--red)'}}>האגרת מוכנה יאגדה</h1>
                     <p className="text-xl mb-8" style={{color:'var(--dark)'}}>עכשיו תוכל לשלוח אותה לחבר השוטר</p>
                     <button onClick={() => wa(cardId)} className="w-full bg-green-500 text-white p-4 rounded-full text-xl font-bold shadow-lg hover:scale-105 transition mb-4">שלח בוואטסאפ</button>
-                    <button onClick={() => {navigator.clipboard.writeText(cardMsg(cardId)); showToast('הלינק הועתק!');}} className="w-full bg-blue-500 text-white p-4 rounded-full text-xl font-bold shadow-lg hover:scale-105 transition mb-8">העתק לינק</button>
+                    <button onClick={() => {navigator.clipboard.writeText(link(cardId)); showToast('הלינק הועתק!');}} className="w-full bg-blue-500 text-white p-4 rounded-full text-xl font-bold shadow-lg hover:scale-105 transition mb-8">העתק לינק</button>
                     <button onClick={() => {setScreen('home'); setText(''); setCard(null);}} className="text-lg hover:opacity-70 inline-flex items-center gap-2" style={{color:'var(--red)'}}><BackTriangle />חזרה למסך הראשי</button>
                 </div>
             </div>;
@@ -375,7 +375,7 @@
                     <h1 className="text-3xl font-bold mb-4" style={{color:'var(--red)'}}>התודה מוכנה לשליחה!</h1>
                     <div className="custom-card mb-8"><div className="centered-text text-xl font-bold numbers-font" style={{color:'var(--red)'}}>{selectedThanks}</div></div>
                     <button onClick={() => waThank(thankId)} className="w-full bg-green-500 text-white p-4 rounded-full text-xl font-bold shadow-lg hover:scale-105 transition mb-4">שלח בוואטסאפ</button>
-                    <button onClick={() => {navigator.clipboard.writeText(thankMsg(thankId)); showToast('הלינק הועתק!');}} className="w-full bg-blue-500 text-white p-4 rounded-full text-xl font-bold shadow-lg hover:scale-105 transition mb-8">העתק לינק</button>
+                    <button onClick={() => {navigator.clipboard.writeText(thankLink(thankId)); showToast('הלינק הועתק!');}} className="w-full bg-blue-500 text-white p-4 rounded-full text-xl font-bold shadow-lg hover:scale-105 transition mb-8">העתק לינק</button>
                     <button onClick={() => {setScreen('home'); setText(''); setCard(null);}} className="text-lg hover:opacity-70 inline-flex items-center gap-2" style={{color:'var(--red)'}}><BackTriangle />חזרה למסך הראשי</button>
                 </div>
             </div>;
