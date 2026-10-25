@@ -68,7 +68,8 @@
                 setThanks(t.data);
             };
 
-            const nextOrder = (list) => list.reduce((m, x) => Math.max(m, x.sort_order || 0), list.length) + 1;
+            // פריט חדש מקבל מספר נמוך מכל הקיימים, כדי שיופיע בתחילת הרשימה
+            const topOrder = (list) => list.reduce((m, x) => Math.min(m, x.sort_order ?? 1), 1) - 1;
 
             const move = async (table, list, setList, i, dir) => {
                 const j = i + dir;
@@ -104,7 +105,7 @@
             const addCard = async () => {
                 if(!newMale.trim() || !newFemale.trim()) { alert('צריך למלא גם נוסח בזכר וגם נוסח בנקבה'); return; }
                 setBusy(true);
-                const { error } = await supabase.from('cards').insert({ text_male: newMale.trim(), text_female: newFemale.trim(), ...(noOrder ? {} : { sort_order: nextOrder(cards) }) });
+                const { error } = await supabase.from('cards').insert({ text_male: newMale.trim(), text_female: newFemale.trim(), ...(noOrder ? {} : { sort_order: topOrder(cards) }) });
                 setBusy(false);
                 if(error) { alert('שגיאה בהוספה: ' + error.message); return; }
                 setNewMale(''); setNewFemale('');
@@ -120,7 +121,7 @@
             const addThank = async () => {
                 if(!newThank.trim()) return;
                 setBusy(true);
-                const { error } = await supabase.from('thanks').insert({ text: newThank.trim(), ...(noOrder ? {} : { sort_order: nextOrder(thanks) }) });
+                const { error } = await supabase.from('thanks').insert({ text: newThank.trim(), ...(noOrder ? {} : { sort_order: topOrder(thanks) }) });
                 setBusy(false);
                 if(error) { alert('שגיאה בהוספה: ' + error.message); return; }
                 setNewThank('');
@@ -153,7 +154,7 @@
                     </div>
 
                     {noOrder && <div className="rounded-xl p-4 mb-6 text-sm font-bold" style={{background:'#fef3c7', color:'#92400e'}}>שינוי סדר עדיין לא פעיל - צריך להריץ פעם אחת את עדכון מסד הנתונים.</div>}
-                    {!noOrder && <p className="text-sm mb-4 opacity-70" style={{color:'var(--dark)'}}>הסדר ברשימה הוא הסדר באפליקציה. החצים מזיזים פריט למעלה או למטה, ופריט חדש מתווסף בסוף.</p>}
+                    {!noOrder && <p className="text-sm mb-4 opacity-70" style={{color:'var(--dark)'}}>הסדר ברשימה הוא הסדר באפליקציה. החצים מזיזים פריט למעלה או למטה, ופריט חדש מתווסף בתחילת הרשימה.</p>}
 
                     <div className="flex gap-3 mb-6">
                         <button onClick={()=>setTab('cards')} className="px-5 py-2 rounded-full font-bold transition" style={{background: tab==='cards'?'var(--red)':'#e5e7eb', color: tab==='cards'?'white':'#555'}}>אגרות ({cards.length})</button>
