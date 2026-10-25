@@ -19,6 +19,7 @@
         @keyframes bounce-in { 0% { transform: scale(0); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
         @keyframes envelope-open { 0% { transform: translateY(0) rotateX(0deg); } 100% { transform: translateY(-80px) rotateX(180deg); opacity: 0; } }
         @keyframes toast-in { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes slide-up { from { transform: translateY(60px); } to { transform: translateY(0); } }
         @keyframes fade-up { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
         @keyframes card-appear { 0% { transform: translateY(100px) scale(0.8); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
@@ -68,9 +69,7 @@
         const BackTriangle = () => <span aria-hidden="true" style={{display:'inline-block', width:0, height:0, borderTop:'7px solid transparent', borderBottom:'7px solid transparent', borderRight:'11px solid var(--red)'}} />;
 
         // ---- מעטפה: אנימציית פתיחה (פריימים מהסרטון) + הכרטיס שיוצא מהכיס ----
-        const ENV = { frames: 60, fps: 30, cw: 470, ch: 440, k: 0.82 };
-        // המעטפה הסגורה המקורית מותאמת (במיקום ובגודל) לפריים הראשון של הסרטון, כדי שהמעבר ביניהם לא יקפוץ
-        const CLOSED = { x: 10, y: 178, sx: 448 / 454, sy: 250 / 264 };
+        const ENV = { frames: 62, fps: 30, cw: 470, ch: 440, k: 0.82 };
         // הזזה קבועה כלפי מעלה של כל הסצנה (בלי תנועה בזמן הפתיחה), כדי שהמעטפה הסגורה לא תהיה נמוכה מדי
         const OFFSET = 42;
         const envImgs = [];
@@ -81,6 +80,7 @@
             for(let i = 0; i < ENV.frames; i++) {
                 const im = new Image();
                 im.src = `./assets/images/envelope-anim/f${String(i).padStart(2,'0')}.webp`;
+                im.onload = () => { if(im.decode) im.decode().catch(() => {}); };
                 envImgs[i] = im;
             }
             const pk = new Image(); pk.src = './assets/images/envelope-anim/pocket.png';
@@ -92,7 +92,8 @@
             const doneRef = useRef(onDone);
             doneRef.current = onDone;
             const [W, setW] = useState(320);
-            const [phase, setPhase] = useState('closed'); // closed | opening | rising | out
+            const [phase, setPhase] = useState('closed'); // closed | opening | rising | lift | out
+            const [hover, setHover] = useState(false);
 
             const lastIdx = useRef(0);
             const drawFrame = (i) => {
@@ -181,33 +182,34 @@
             };
             const cardTransform = cardPose[phase] || cardPose.opening;
             const cardTransition = calm ? 'none'
-                : phase === 'rising' ? 'transform 800ms cubic-bezier(.22,.8,.25,1), opacity 150ms'
+                : phase === 'rising' ? 'transform 800ms cubic-bezier(.22,.8,.25,1)'
                 : phase === 'lift' ? 'transform 550ms cubic-bezier(.3,.9,.3,1)'
                 : phase === 'out' ? 'transform 650ms cubic-bezier(.34,1.45,.64,1)' : 'none';
             const envGone = phase === 'out';
             const cardUp = phase === 'lift' || phase === 'out';
-            const envFade = {opacity: envGone ? 0 : 1, transform: envGone ? `translateY(${140 * s}px) scale(.94)` : 'none', transformOrigin:'50% 80%',
-                transition: envGone && !calm ? 'transform 650ms cubic-bezier(.55,0,.8,.4), opacity 320ms ease-in 280ms' : 'none'};
+            const envFade = {transform: envGone ? `translateY(${450 * s}px)` : 'none', transition: envGone && !calm ? 'transform 650ms cubic-bezier(.5,0,1,.55)' : 'none', };
+            const envClip = {clipPath: 'inset(-3000px -3000px 0 -3000px)'};
 
-            return <div ref={rootRef} className="relative w-full h-full max-w-md mx-auto flex items-center justify-center" style={{maxHeight:'460px'}} onClick={!isOpen ? onOpen : undefined}>
-                <div className={`relative ${phase==='closed' ? 'cursor-pointer' : ''}`} style={{width: W, height: Hs, transform: `translateY(${-OFFSET * s}px)`}}>
-                    <p className="absolute left-0 right-0 text-center font-bold text-lg sm:text-xl pointer-events-none" style={{top: 441 * s, color:'var(--red)', opacity: phase==='closed' ? 1 : 0, transition:'opacity 300ms'}}>לחץ כדי לפתוח</p>
+            return <div ref={rootRef} className="relative w-full h-full max-w-md mx-auto flex items-center justify-center" style={{maxHeight:'460px'}} onClick={!isOpen ? onOpen : undefined} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+                <div className={`relative ${phase==='closed' ? 'cursor-pointer' : ''}`} style={{width: W, height: Hs, transform: `translateY(${-OFFSET * s}px) scale(${phase==='closed' && hover ? 1.04 : 1})`, transition: `transform ${phase==='closed' ? 250 : 900}ms ease-out`}}>
+                    <p className="absolute left-0 right-0 text-center font-bold text-lg sm:text-xl pointer-events-none" style={{top: 441 * s, color:'var(--red)', visibility: phase==='closed' ? 'visible' : 'hidden'}}>לחץ כדי לפתוח</p>
 
-                    <div className="absolute inset-0 pointer-events-none" style={{zIndex: 1, ...envFade}}>
-                        <div className={`absolute inset-0 ${phase==='closed' ? 'hover:scale-[1.04]' : ''}`} style={{transition:'transform 250ms', pointerEvents: phase==='closed' ? 'auto' : 'none'}}>
-                        <img src="./assets/images/מעטפה-סגורה.png" alt="" className="absolute" style={{width: 600 * CLOSED.sx * s, height: 400 * CLOSED.sy * s, maxWidth:'none', left: (CLOSED.x - 69 * CLOSED.sx) * s, top: (CLOSED.y - 66 * CLOSED.sy) * s, opacity: phase==='closed' ? 1 : 0, transition: 'opacity 180ms linear', zIndex: 1}} />
-                        <canvas ref={cvRef} width={Math.round(W * dpr)} height={Math.round(Hs * dpr)} className="absolute inset-0" style={{width:'100%', height:'100%', opacity: phase==='closed' ? 0 : 1}} />
+                    <div className="absolute inset-0 pointer-events-none" style={{zIndex: 1, ...envClip}}>
+                        <div className="absolute inset-0" style={envFade}>
+                            <canvas ref={cvRef} width={Math.round(W * dpr)} height={Math.round(Hs * dpr)} className="absolute inset-0" style={{width:'100%', height:'100%'}} />
                         </div>
                     </div>
 
                     <div className="absolute inset-0 pointer-events-none" style={{zIndex: cardUp ? 4 : 2, clipPath: cardUp ? 'none' : `inset(-3000px -3000px ${13 * s}px -3000px)`}}>
-                        <div ref={cardRef} className="absolute" style={{left:'50%', top:'50%', width: W, transform: cardTransform, transition: cardTransition, opacity: (phase==='closed' || phase==='opening') ? 0 : 1}}>
+                        <div ref={cardRef} className="absolute" style={{left:'50%', top:'50%', width: W, transform: cardTransform, transition: cardTransition, visibility: (phase==='closed' || phase==='opening') ? 'hidden' : 'visible'}}>
                             {children}
                         </div>
                     </div>
 
-                    <div className="absolute inset-0 pointer-events-none" style={{zIndex: 3, ...envFade}}>
-                        <img src="./assets/images/envelope-anim/pocket.png" alt="" className="absolute" style={{left: 12 * s, top: 181 * s, width: 445 * s, height: 'auto', opacity: phase==='closed' || phase==='opening' ? 0 : 1}} />
+                    <div className="absolute inset-0 pointer-events-none" style={{zIndex: 3, ...envClip}}>
+                      <div className="absolute inset-0" style={envFade}>
+                        <img src="./assets/images/envelope-anim/pocket.png" alt="" className="absolute" style={{left: 12 * s, top: 181 * s, width: 445 * s, height: 'auto', visibility: phase==='closed' || phase==='opening' ? 'hidden' : 'visible'}} />
+                      </div>
                     </div>
                 </div>
             </div>;
@@ -477,7 +479,7 @@
                     <div className="flex items-center justify-center py-2" style={{flex:'0 1 400px', minHeight:0}}>
                         <Envelope key={cardId} isOpen={open} onOpen={() => setOpen(true)} onDone={() => setDone(true)}>{card && <CardDisplay text={card.text} />}</Envelope>
                     </div>
-                    <div className="shrink-0 space-y-3 pb-2" style={done ? {animation:'fade-up 0.4s ease-out'} : {visibility:'hidden'}}>
+                    <div className="shrink-0 space-y-3 pb-2" style={done ? {animation:'slide-up 0.45s cubic-bezier(.2,1.2,.4,1)'} : {visibility:'hidden'}}>
                         <button onClick={() => setThanksOpen(true)} className="w-full p-3 rounded-full text-lg font-bold text-white shadow-lg active:scale-95 transition" style={{background:`linear-gradient(135deg,var(--pink),var(--red))`}}>
                             {isFemale ? 'תכבדי בתודה' : 'תכבד בתודה'}
                         </button>
@@ -521,7 +523,7 @@
                     <div className="flex items-center justify-center py-2" style={{flex:'0 1 400px', minHeight:0}}>
                         <Envelope key={thankId} isOpen={open} onOpen={() => setOpen(true)} onDone={() => setDone(true)}><div className="custom-card"><div className="centered-text text-xl font-bold numbers-font" style={{color:'var(--red)'}}>{thankText}</div></div></Envelope>
                     </div>
-                    <div className="shrink-0 pb-2" style={done ? {animation:'fade-up 0.4s ease-out'} : {visibility:'hidden'}}>
+                    <div className="shrink-0 pb-2" style={done ? {animation:'slide-up 0.45s cubic-bezier(.2,1.2,.4,1)'} : {visibility:'hidden'}}>
                         <button onClick={() => {setScreen('home');}} className="w-full p-3 rounded-full text-lg font-bold text-white shadow-lg hover:scale-105 transition" style={{background:'linear-gradient(135deg,#a855f7,#ec4899)'}}>שלח אגרת בעצמך</button>
                     </div>
                 </div>
