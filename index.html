@@ -47,6 +47,8 @@
 
         const CardDisplay = ({text}) => <div className="custom-card w-full max-w-lg"><div className="centered-text text-2xl font-bold numbers-font" style={{color:'var(--red)', wordWrap:'break-word', wordBreak:'break-word', whiteSpace:'pre-wrap', overflowWrap:'break-word'}}>{text}</div></div>;
 
+        const BackTriangle = () => <span aria-hidden="true" style={{display:'inline-block', width:0, height:0, borderTop:'7px solid transparent', borderBottom:'7px solid transparent', borderRight:'11px solid var(--red)'}} />;
+
         const Envelope = ({isOpen, onOpen, children}) => {
             const [show, setShow] = useState(false);
             useEffect(() => {
@@ -208,7 +210,7 @@
 
             if(screen==='browse') return <div className="min-h-screen p-4" style={{background:'linear-gradient(135deg,var(--beige),var(--white))'}}>
                 <div className="max-w-md mx-auto pt-8">
-                    <button onClick={() => {setScreen('home'); setGender('male');}} className="mb-6 text-xl hover:opacity-70" style={{color:'var(--red)'}}>◀ חזרה</button>
+                    <button onClick={() => {setScreen('home'); setGender('male');}} className="mb-6 text-xl hover:opacity-70 inline-flex items-center gap-2" style={{color:'var(--red)'}}><BackTriangle />חזרה</button>
                     <div className="mb-6"><CardDisplay text={displayText || card?.textMale || ''} /></div>
 
                     {/* כפתורי זכר/נקבה */}
@@ -241,9 +243,7 @@
 
                     <button onClick={() => send(displayText || card.textMale, gender)} className="mx-auto px-8 py-3 rounded-full flex items-center justify-center gap-3 text-xl font-bold shadow-2xl hover:shadow-pink-500/50 hover:scale-105 transition-all duration-300" style={{background:`linear-gradient(135deg,var(--pink),var(--red))`, boxShadow: '0 10px 40px rgba(244, 97, 103, 0.4)'}}>
                         <span style={{color: 'var(--white)'}}>שלח את האגרת</span>
-                        <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                            <img src="./assets/images/אייקון-שליחה-לבן.png" className="w-8 h-8" alt="" />
-                        </div>
+                        <img src="./assets/images/אייקון-נייר-לבן.png" className="h-7 w-auto" alt="" />
                     </button>
                 </div>
             </div>;
@@ -296,7 +296,7 @@
                             <img src="./assets/images/אייקון-פח.png" className="w-16 h-16 object-contain" alt="מחק" />
                         </button>
                     </div>
-                    <button onClick={() => setScreen('home')} className="w-full mt-6 text-center hover:opacity-70 text-lg" style={{color:'var(--red)'}}>◀ חזרה למסך הראשי</button>
+                    <button onClick={() => setScreen('home')} className="w-full mt-6 flex items-center justify-center gap-2 hover:opacity-70 text-lg" style={{color:'var(--red)'}}><BackTriangle />חזרה למסך הראשי</button>
                 </div>
             </div>;
 
@@ -309,7 +309,7 @@
                     <p className="text-xl mb-8" style={{color:'var(--dark)'}}>עכשיו תוכל לשלוח אותה לחבר השוטר</p>
                     <button onClick={() => wa(cardId)} className="w-full bg-green-500 text-white p-4 rounded-full text-xl font-bold shadow-lg hover:scale-105 transition mb-4">שלח בוואטסאפ</button>
                     <button onClick={() => {navigator.clipboard.writeText(link(cardId)); alert('הלינק הועתק!');}} className="w-full bg-blue-500 text-white p-4 rounded-full text-xl font-bold shadow-lg hover:scale-105 transition mb-8">העתק לינק</button>
-                    <button onClick={() => {setScreen('home'); setText(''); setCard(null);}} className="text-lg hover:opacity-70" style={{color:'var(--red)'}}>◀ חזרה למסך הראשי</button>
+                    <button onClick={() => {setScreen('home'); setText(''); setCard(null);}} className="text-lg hover:opacity-70 inline-flex items-center gap-2" style={{color:'var(--red)'}}><BackTriangle />חזרה למסך הראשי</button>
                 </div>
             </div>;
 
@@ -350,7 +350,7 @@
                     <div className="custom-card mb-8"><div className="centered-text text-xl font-bold numbers-font" style={{color:'var(--red)'}}>{selectedThanks}</div></div>
                     <button onClick={() => waThank(thankId)} className="w-full bg-green-500 text-white p-4 rounded-full text-xl font-bold shadow-lg hover:scale-105 transition mb-4">שלח בוואטסאפ</button>
                     <button onClick={() => {navigator.clipboard.writeText(thankLink(thankId)); alert('הלינק הועתק!');}} className="w-full bg-blue-500 text-white p-4 rounded-full text-xl font-bold shadow-lg hover:scale-105 transition mb-8">העתק לינק</button>
-                    <button onClick={() => {setScreen('home'); setText(''); setCard(null);}} className="text-lg hover:opacity-70" style={{color:'var(--red)'}}>◀ חזרה למסך הראשי</button>
+                    <button onClick={() => {setScreen('home'); setText(''); setCard(null);}} className="text-lg hover:opacity-70 inline-flex items-center gap-2" style={{color:'var(--red)'}}><BackTriangle />חזרה למסך הראשי</button>
                 </div>
             </div>;
 
