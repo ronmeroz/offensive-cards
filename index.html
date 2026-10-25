@@ -193,14 +193,16 @@
                 return data.id;
             };
             const link = (id) => `${window.location.origin}${window.location.pathname}#card=${id}`;
-            const wa = (id) => window.open(`https://wa.me/?text=${encodeURIComponent(`קיבלת אגרת ברכה מרגשת!\n${link(id)}`)}`, '_blank');
+            const cardMsg = (id) => `קיבלת אגרת ברכה יכוזר!\n${link(id)}`;
+            const thankMsg = (id) => `קיבלת תודה! 💝\n${thankLink(id)}`;
+            const wa = (id) => window.open(`https://wa.me/?text=${encodeURIComponent(cardMsg(id))}`, '_blank');
             const saveThank = async (t) => {
                 const { data, error } = await supabase.from('sent_thanks').insert({text:t}).select().single();
                 if(error) { console.error(error); showToast('הייתה בעיה בשליחה, נסה שוב'); return null; }
                 return data.id;
             };
             const thankLink = (id) => `${window.location.origin}${window.location.pathname}#thank=${id}`;
-            const waThank = (id) => window.open(`https://wa.me/?text=${encodeURIComponent(`קיבלת תודה! 💝\n${thankLink(id)}`)}`, '_blank');
+            const waThank = (id) => window.open(`https://wa.me/?text=${encodeURIComponent(thankMsg(id))}`, '_blank');
             const pickThank = async (t) => {
                 const id = await saveThank(t);
                 if(!id) return;
@@ -331,7 +333,7 @@
                     <h1 className="text-3xl font-bold mb-4" style={{color:'var(--red)'}}>האגרת מוכנה יאגדה</h1>
                     <p className="text-xl mb-8" style={{color:'var(--dark)'}}>עכשיו תוכל לשלוח אותה לחבר השוטר</p>
                     <button onClick={() => wa(cardId)} className="w-full bg-green-500 text-white p-4 rounded-full text-xl font-bold shadow-lg hover:scale-105 transition mb-4">שלח בוואטסאפ</button>
-                    <button onClick={() => {navigator.clipboard.writeText(link(cardId)); showToast('הלינק הועתק!');}} className="w-full bg-blue-500 text-white p-4 rounded-full text-xl font-bold shadow-lg hover:scale-105 transition mb-8">העתק לינק</button>
+                    <button onClick={() => {navigator.clipboard.writeText(cardMsg(cardId)); showToast('הלינק הועתק!');}} className="w-full bg-blue-500 text-white p-4 rounded-full text-xl font-bold shadow-lg hover:scale-105 transition mb-8">העתק לינק</button>
                     <button onClick={() => {setScreen('home'); setText(''); setCard(null);}} className="text-lg hover:opacity-70 inline-flex items-center gap-2" style={{color:'var(--red)'}}><BackTriangle />חזרה למסך הראשי</button>
                 </div>
             </div>;
@@ -372,7 +374,7 @@
                     <h1 className="text-3xl font-bold mb-4" style={{color:'var(--red)'}}>התודה מוכנה לשליחה!</h1>
                     <div className="custom-card mb-8"><div className="centered-text text-xl font-bold numbers-font" style={{color:'var(--red)'}}>{selectedThanks}</div></div>
                     <button onClick={() => waThank(thankId)} className="w-full bg-green-500 text-white p-4 rounded-full text-xl font-bold shadow-lg hover:scale-105 transition mb-4">שלח בוואטסאפ</button>
-                    <button onClick={() => {navigator.clipboard.writeText(thankLink(thankId)); showToast('הלינק הועתק!');}} className="w-full bg-blue-500 text-white p-4 rounded-full text-xl font-bold shadow-lg hover:scale-105 transition mb-8">העתק לינק</button>
+                    <button onClick={() => {navigator.clipboard.writeText(thankMsg(thankId)); showToast('הלינק הועתק!');}} className="w-full bg-blue-500 text-white p-4 rounded-full text-xl font-bold shadow-lg hover:scale-105 transition mb-8">העתק לינק</button>
                     <button onClick={() => {setScreen('home'); setText(''); setCard(null);}} className="text-lg hover:opacity-70 inline-flex items-center gap-2" style={{color:'var(--red)'}}><BackTriangle />חזרה למסך הראשי</button>
                 </div>
             </div>;
