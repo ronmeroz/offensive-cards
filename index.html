@@ -145,68 +145,93 @@
                 return () => ro.disconnect();
             }, []);
 
-            // ציר הזמן: הדש נפתח -> הכרטיס עולה בתוך הכיס -> נשלף למעלה -> המעטפה נופלת והכרטיס מתיישב במרכז
+            // ציר הזמן: הדש נפתח -> הכרטיס עולה בתוך הכיס (מאחורי הקדמי) -> יוצא למעלה -> קשת קדימה למרכז, והמעטפה נופלת
             const [calm, setCalm] = useState(false);
+            const animRef = useRef(null);
+            const geoRef = useRef({s: 1, Hc: 220});
+            const T = { rise: 1400, up: 2100, apex: 2750, end: 3500 };
+            const eo = x => 1 - Math.pow(1 - x, 3);
+            const eio = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+            const clamp01 = x => Math.max(0, Math.min(1, x));
+            // מיקום הכרטיס (יחסית למרכז הבמה) לפי זמן מתחילת הפתיחה
+            const poseAt = (ms) => {
+                const {s, Hc} = geoRef.current, k = ENV.k;
+                const hiddenDy = 171 * s - 0.5 * k * Hc + 0.95 * k * Hc;
+                const peekDy = 171 * s - 0.5 * k * Hc;
+                const kA = Math.max(0.6, Math.min(0.82, 196 * s / Hc));   // בשיא היציאה הכרטיס קטן מספיק כדי לא לעלות על הכותרת
+                const apexDy = 196 * s - 0.5 * kA * Hc - 220 * s;   // התחתית של הכרטיס נקייה מהכיס הקדמי
+                const finalDy = OFFSET * s;
+                let y, sc = k;
+                if(ms < T.rise) y = hiddenDy;
+                else if(ms < T.up) y = hiddenDy + (peekDy - hiddenDy) * eo(clamp01((ms - T.rise) / (T.up - T.rise)));
+                else if(ms < T.apex) { const q = eio(clamp01((ms - T.up) / (T.apex - T.up))); y = peekDy + (apexDy - peekDy) * q; sc = k + (kA - k) * q; }
+                else {
+                    const q = eio(clamp01((ms - T.apex) / (T.end - T.apex)));
+                    y = apexDy + (finalDy - apexDy) * q;
+                    sc = kA + (1 - kA) * q;
+                }
+                const u = clamp01((ms - T.up) / (T.end - T.up));
+                const x = 0.09 * geoRef.current.W * Math.sin(Math.PI * u);
+                const rot = -5 * Math.sin(Math.PI * u);
+                return {y, x, sc, rot, bottom: 220 * s + y + 0.5 * sc * Hc};
+            };
+            const applyPose = (ms) => {
+                const el = animRef.current;
+                if(!el) return null;
+                const P = poseAt(ms);
+                el.style.transform = `translate(-50%,-50%) translate(${P.x}px,${P.y}px) rotate(${P.rot}deg) scale(${P.sc})`;
+                return P;
+            };
+            geoRef.current = {s: W / ENV.cw, Hc, W};
+            const animating = useRef(false);
+            useEffect(() => { if(!animating.current) applyPose(phase === 'out' ? 1e6 : 0); }, [W, Hc, phase]);
+
             useEffect(() => {
                 if(!isOpen) { setPhase('closed'); return; }
                 if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
                     setCalm(true); setPhase('out'); doneRef.current && doneRef.current(); return;
                 }
                 setPhase('opening');
+                animating.current = true;
                 const t0 = performance.now();
-                let raf;
+                let raf, lifted = false, risen = false, fell = false, finished = false;
                 const loop = (now) => {
-                    const i = Math.min(ENV.frames - 1, Math.floor((now - t0) / 1000 * ENV.fps));
-                    drawFrame(i);
-                    if(i < ENV.frames - 1) raf = requestAnimationFrame(loop);
+                    const ms = now - t0;
+                    drawFrame(Math.min(ENV.frames - 1, Math.floor(ms / 1000 * ENV.fps)));
+                    const P = applyPose(ms);
+                    if(!risen && ms >= T.rise) { risen = true; setPhase('rising'); }
+                    if(risen && !lifted && P && P.bottom <= 194 * geoRef.current.s) { lifted = true; setPhase('lift'); }
+                    if(!fell && ms >= T.apex) { fell = true; setPhase('out'); }
+                    if(ms >= T.end + 100 && !finished) { finished = true; animating.current = false; doneRef.current && doneRef.current(); return; }
+                    raf = requestAnimationFrame(loop);
                 };
                 raf = requestAnimationFrame(loop);
-                const ts = [
-                    setTimeout(() => setPhase('rising'), 1400),
-                    setTimeout(() => setPhase('lift'), 2250),
-                    setTimeout(() => setPhase('out'), 2850),
-                    setTimeout(() => doneRef.current && doneRef.current(), 3600),
-                ];
-                return () => { cancelAnimationFrame(raf); ts.forEach(clearTimeout); };
+                return () => { cancelAnimationFrame(raf); animating.current = false; };
             }, [isOpen]);
 
-            const s = W / ENV.cw, k = ENV.k, Hs = ENV.ch * s;
-            const peekDy = 171 * s - 0.5 * k * Hc;
-            const liftTop = Math.max(6 * s, 270 * s - k * Hc);
-            const liftDy = liftTop + 0.5 * k * Hc - 220 * s;
-            const cardPose = {
-                opening: `translate(-50%,-50%) translate(0,${peekDy + 0.95 * k * Hc}px) scale(${k})`,
-                rising:  `translate(-50%,-50%) translate(0,${peekDy}px) scale(${k})`,
-                lift:    `translate(-50%,-50%) translate(0,${liftDy}px) rotate(-1.5deg) scale(${k})`,
-                out:     `translate(-50%,-50%) translate(0,${OFFSET * s}px) rotate(0deg) scale(1)`,
-            };
-            const cardTransform = cardPose[phase] || cardPose.opening;
-            const cardTransition = calm ? 'none'
-                : phase === 'rising' ? 'transform 800ms cubic-bezier(.22,.8,.25,1)'
-                : phase === 'lift' ? 'transform 550ms cubic-bezier(.3,.9,.3,1)'
-                : phase === 'out' ? 'transform 650ms cubic-bezier(.34,1.45,.64,1)' : 'none';
+            const s = W / ENV.cw, Hs = ENV.ch * s;
             const envGone = phase === 'out';
             const cardUp = phase === 'lift' || phase === 'out';
-            const envFade = {transform: envGone ? `translateY(${450 * s}px)` : 'none', transition: envGone && !calm ? 'transform 650ms cubic-bezier(.5,0,1,.55)' : 'none', };
-            const envClip = {clipPath: 'inset(-3000px -3000px 0 -3000px)'};
+            const fallDist = Math.max(450 * s, (window.innerHeight || 800)) + 40;
+            const envFade = {transform: envGone ? `translateY(${fallDist}px)` : 'none', transition: envGone && !calm ? 'transform 750ms cubic-bezier(.55,0,1,.6)' : 'none'};
 
             return <div ref={rootRef} className="relative w-full h-full max-w-md mx-auto flex items-center justify-center" style={{maxHeight:'460px'}} onClick={!isOpen ? onOpen : undefined} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
                 <div className={`relative ${phase==='closed' ? 'cursor-pointer' : ''}`} style={{width: W, height: Hs, transform: `translateY(${-OFFSET * s}px) scale(${phase==='closed' && hover ? 1.04 : 1})`, transition: `transform ${phase==='closed' ? 250 : 900}ms ease-out`}}>
                     <p className="absolute left-0 right-0 text-center font-bold text-lg sm:text-xl pointer-events-none" style={{top: 441 * s, color:'var(--red)', visibility: phase==='closed' ? 'visible' : 'hidden'}}>לחץ כדי לפתוח</p>
 
-                    <div className="absolute inset-0 pointer-events-none" style={{zIndex: 1, ...envClip}}>
+                    <div className="absolute inset-0 pointer-events-none" style={{zIndex: 1}}>
                         <div className="absolute inset-0" style={envFade}>
                             <canvas ref={cvRef} width={Math.round(W * dpr)} height={Math.round(Hs * dpr)} className="absolute inset-0" style={{width:'100%', height:'100%'}} />
                         </div>
                     </div>
 
                     <div className="absolute inset-0 pointer-events-none" style={{zIndex: cardUp ? 4 : 2, clipPath: cardUp ? 'none' : `inset(-3000px -3000px ${13 * s}px -3000px)`}}>
-                        <div ref={cardRef} className="absolute" style={{left:'50%', top:'50%', width: W, transform: cardTransform, transition: cardTransition, visibility: (phase==='closed' || phase==='opening') ? 'hidden' : 'visible'}}>
-                            {children}
+                        <div ref={animRef} className="absolute" style={{left:'50%', top:'50%', width: W, willChange:'transform', visibility: (phase==='closed' || phase==='opening') ? 'hidden' : 'visible'}}>
+                            <div ref={cardRef}>{children}</div>
                         </div>
                     </div>
 
-                    <div className="absolute inset-0 pointer-events-none" style={{zIndex: 3, ...envClip}}>
+                    <div className="absolute inset-0 pointer-events-none" style={{zIndex: 3}}>
                       <div className="absolute inset-0" style={envFade}>
                         <img src="./assets/images/envelope-anim/pocket.png" alt="" className="absolute" style={{left: 12 * s, top: 181 * s, width: 445 * s, height: 'auto', visibility: phase==='closed' || phase==='opening' ? 'hidden' : 'visible'}} />
                       </div>
@@ -472,7 +497,7 @@
                 </div>
             </div>;
 
-            if(screen==='view') { const isFemale = viewGender === 'female'; return <div className="h-[100dvh] p-4 relative overflow-y-auto overflow-x-hidden flex flex-col" style={{background:'linear-gradient(135deg,var(--beige),var(--white))'}}>
+            if(screen==='view') { const isFemale = viewGender === 'female'; return <div className="h-[100dvh] p-4 relative overflow-hidden flex flex-col" style={{background:'linear-gradient(135deg,var(--beige),var(--white))'}}>
                 <FloatingHearts count={30} />
                 <div className="w-full max-w-md mx-auto relative z-10 flex-1 flex flex-col justify-center min-h-0">
                     <h1 className="text-2xl sm:text-3xl font-bold text-center mb-3 sm:mb-6 shrink-0 pt-2" style={{color:'var(--red)'}}>{isFemale ? 'קיבלת אגרת ברכה ישמאלנית' : 'קיבלת אגרת ברכה ישמאלני'}</h1>
@@ -513,7 +538,7 @@
                 </div>
             </div>;
 
-            if(screen==='thankView') return <div className="h-[100dvh] p-4 relative overflow-y-auto overflow-x-hidden flex flex-col" style={{background:'linear-gradient(135deg,var(--beige),var(--white))'}}>
+            if(screen==='thankView') return <div className="h-[100dvh] p-4 relative overflow-hidden flex flex-col" style={{background:'linear-gradient(135deg,var(--beige),var(--white))'}}>
                 <FloatingHearts count={30} />
                 <div className="w-full max-w-md mx-auto relative z-10 flex-1 flex flex-col justify-center min-h-0 text-center">
                     <div className="shrink-0 mb-3 sm:mb-6 pt-2">
