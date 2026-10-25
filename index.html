@@ -18,6 +18,7 @@
         @keyframes heart-float { 0%,100% { transform: translate(0,0) rotate(0deg); } 25% { transform: translate(30px,-40px) rotate(10deg); } 50% { transform: translate(-20px,-70px) rotate(-5deg); } 75% { transform: translate(40px,-50px) rotate(8deg); } }
         @keyframes bounce-in { 0% { transform: scale(0); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
         @keyframes envelope-open { 0% { transform: translateY(0) rotateX(0deg); } 100% { transform: translateY(-80px) rotateX(180deg); opacity: 0; } }
+        @keyframes toast-in { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
         @keyframes card-appear { 0% { transform: translateY(100px) scale(0.8); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
         .custom-card { background: url('./assets/images/card-frame.png') center/100% 100% no-repeat; min-height: 220px; padding: 40px 35px; display: flex; align-items: center; justify-content: center; }
@@ -46,6 +47,22 @@
         };
 
         const CardDisplay = ({text}) => <div className="custom-card w-full max-w-lg"><div className="centered-text text-2xl font-bold numbers-font" style={{color:'var(--red)', wordWrap:'break-word', wordBreak:'break-word', whiteSpace:'pre-wrap', overflowWrap:'break-word'}}>{text}</div></div>;
+
+        // הודעה קופצת בעיצוב של האתר (במקום חלון ההתראה של הדפדפן)
+        const showToast = (message) => window.dispatchEvent(new CustomEvent('app-toast', {detail: message}));
+        const ToastHost = () => {
+            const [msg, setMsg] = useState(null);
+            useEffect(() => {
+                let timer;
+                const on = (e) => { setMsg({text: e.detail, id: Date.now()}); clearTimeout(timer); timer = setTimeout(() => setMsg(null), 2200); };
+                window.addEventListener('app-toast', on);
+                return () => { window.removeEventListener('app-toast', on); clearTimeout(timer); };
+            }, []);
+            if(!msg) return null;
+            return <div key={msg.id} className="fixed left-0 right-0 flex justify-center pointer-events-none" style={{bottom:'max(32px, env(safe-area-inset-bottom))', zIndex:100}}>
+                <div className="px-6 py-3 rounded-full text-lg font-bold text-white shadow-2xl" style={{background:'linear-gradient(135deg,var(--pink),var(--red))', boxShadow:'0 10px 30px rgba(244,97,103,0.45)', animation:'toast-in 0.25s ease-out'}}>{msg.text}</div>
+            </div>;
+        };
 
         const BackTriangle = () => <span aria-hidden="true" style={{display:'inline-block', width:0, height:0, borderTop:'7px solid transparent', borderBottom:'7px solid transparent', borderRight:'11px solid var(--red)'}} />;
 
@@ -166,14 +183,14 @@
 
             const save = async (t, g) => {
                 const { data, error } = await supabase.from('sent_cards').insert({text:t, gender:g || 'male'}).select().single();
-                if(error) { console.error(error); alert('הייתה בעיה בשליחה, נסה שוב'); return null; }
+                if(error) { console.error(error); showToast('הייתה בעיה בשליחה, נסה שוב'); return null; }
                 return data.id;
             };
             const link = (id) => `${window.location.origin}${window.location.pathname}#card=${id}`;
             const wa = (id) => window.open(`https://wa.me/?text=${encodeURIComponent(`קיבלת אגרת ברכה מרגשת!\n${link(id)}`)}`, '_blank');
             const saveThank = async (t) => {
                 const { data, error } = await supabase.from('sent_thanks').insert({text:t}).select().single();
-                if(error) { console.error(error); alert('הייתה בעיה בשליחה, נסה שוב'); return null; }
+                if(error) { console.error(error); showToast('הייתה בעיה בשליחה, נסה שוב'); return null; }
                 return data.id;
             };
             const thankLink = (id) => `${window.location.origin}${window.location.pathname}#thank=${id}`;
@@ -282,7 +299,7 @@
                     </div>
                     <div className="flex gap-4 justify-center items-center">
                         <button
-                            onClick={() => text.trim() ? send(text) : alert('כתוב משהו קודם!')}
+                            onClick={() => text.trim() ? send(text) : showToast('כתוב משהו קודם!')}
                             className="hover:scale-110 transition-transform"
                             style={{background:'none', border:'none', padding:0, cursor:'pointer'}}
                         >
@@ -308,7 +325,7 @@
                     <h1 className="text-3xl font-bold mb-4" style={{color:'var(--red)'}}>האגרת מוכנה יאגדה</h1>
                     <p className="text-xl mb-8" style={{color:'var(--dark)'}}>עכשיו תוכל לשלוח אותה לחבר השוטר</p>
                     <button onClick={() => wa(cardId)} className="w-full bg-green-500 text-white p-4 rounded-full text-xl font-bold shadow-lg hover:scale-105 transition mb-4">שלח בוואטסאפ</button>
-                    <button onClick={() => {navigator.clipboard.writeText(link(cardId)); alert('הלינק הועתק!');}} className="w-full bg-blue-500 text-white p-4 rounded-full text-xl font-bold shadow-lg hover:scale-105 transition mb-8">העתק לינק</button>
+                    <button onClick={() => {navigator.clipboard.writeText(link(cardId)); showToast('הלינק הועתק!');}} className="w-full bg-blue-500 text-white p-4 rounded-full text-xl font-bold shadow-lg hover:scale-105 transition mb-8">העתק לינק</button>
                     <button onClick={() => {setScreen('home'); setText(''); setCard(null);}} className="text-lg hover:opacity-70 inline-flex items-center gap-2" style={{color:'var(--red)'}}><BackTriangle />חזרה למסך הראשי</button>
                 </div>
             </div>;
@@ -349,7 +366,7 @@
                     <h1 className="text-3xl font-bold mb-4" style={{color:'var(--red)'}}>התודה מוכנה לשליחה!</h1>
                     <div className="custom-card mb-8"><div className="centered-text text-xl font-bold numbers-font" style={{color:'var(--red)'}}>{selectedThanks}</div></div>
                     <button onClick={() => waThank(thankId)} className="w-full bg-green-500 text-white p-4 rounded-full text-xl font-bold shadow-lg hover:scale-105 transition mb-4">שלח בוואטסאפ</button>
-                    <button onClick={() => {navigator.clipboard.writeText(thankLink(thankId)); alert('הלינק הועתק!');}} className="w-full bg-blue-500 text-white p-4 rounded-full text-xl font-bold shadow-lg hover:scale-105 transition mb-8">העתק לינק</button>
+                    <button onClick={() => {navigator.clipboard.writeText(thankLink(thankId)); showToast('הלינק הועתק!');}} className="w-full bg-blue-500 text-white p-4 rounded-full text-xl font-bold shadow-lg hover:scale-105 transition mb-8">העתק לינק</button>
                     <button onClick={() => {setScreen('home'); setText(''); setCard(null);}} className="text-lg hover:opacity-70 inline-flex items-center gap-2" style={{color:'var(--red)'}}><BackTriangle />חזרה למסך הראשי</button>
                 </div>
             </div>;
@@ -371,7 +388,7 @@
             </div>;
         }
 
-        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+        ReactDOM.createRoot(document.getElementById('root')).render(<><App /><ToastHost /></>);
     </script>
 </body>
 </html>
