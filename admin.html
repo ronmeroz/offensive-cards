@@ -40,6 +40,7 @@
             const [newThank, setNewThank] = useState('');
             const [tab, setTab] = useState('cards');
             const [busy, setBusy] = useState(false);
+            const [noOrder, setNoOrder] = useState(false);
 
             useEffect(() => {
                 supabase.auth.getSession().then(({data}) => { setSession(data.session); setLoading(false); });
@@ -49,12 +50,45 @@
 
             useEffect(() => { if(session) loadAll(); }, [session]);
 
-            const loadAll = async () => {
-                const { data: c } = await supabase.from('cards').select('*').order('created_at', {ascending:false});
-                setCards(c || []);
-                const { data: t } = await supabase.from('thanks').select('*').order('created_at', {ascending:false});
-                setThanks(t || []);
+            // הסדר כאן הוא בדיוק הסדר שבו הפריטים מופיעים באפליקציה (הראשון ברשימה = הראשון באפליקציה)
+            const fetchOrdered = async (table) => {
+                let r = await supabase.from(table).select('*').order('sort_order', {ascending:true}).order('created_at', {ascending:true});
+                if(r.error) {
+                    r = await supabase.from(table).select('*').order('created_at', {ascending:true});
+                    return { data: r.data || [], missing: true };
+                }
+                return { data: r.data || [], missing: false };
             };
+
+            const loadAll = async () => {
+                const c = await fetchOrdered('cards');
+                const t = await fetchOrdered('thanks');
+                setNoOrder(c.missing || t.missing);
+                setCards(c.data);
+                setThanks(t.data);
+            };
+
+            const nextOrder = (list) => list.reduce((m, x) => Math.max(m, x.sort_order || 0), list.length) + 1;
+
+            const move = async (table, list, setList, i, dir) => {
+                const j = i + dir;
+                if(busy || noOrder || j < 0 || j >= list.length) return;
+                const next = [...list];
+                [next[i], next[j]] = [next[j], next[i]];
+                const renum = next.map((x, k) => ({...x, sort_order: k + 1}));
+                const old = Object.fromEntries(list.map(x => [x.id, x.sort_order]));
+                setList(renum);
+                setBusy(true);
+                const results = await Promise.all(renum.filter(x => old[x.id] !== x.sort_order)
+                    .map(x => supabase.from(table).update({ sort_order: x.sort_order }).eq('id', x.id)));
+                setBusy(false);
+                if(results.some(r => r.error)) { alert('שגיאה בשינוי הסדר, נסה שוב'); loadAll(); }
+            };
+
+            const MoveButtons = ({table, list, setList, i}) => <div className="flex flex-col gap-1 shrink-0">
+                <button onClick={()=>move(table, list, setList, i, -1)} disabled={noOrder || busy || i===0} className="w-10 h-9 rounded-lg font-bold text-white" style={{background:'var(--red)', opacity:(noOrder||busy||i===0)?0.25:1}} aria-label="הזז למעלה">▲</button>
+                <button onClick={()=>move(table, list, setList, i, 1)} disabled={noOrder || busy || i===list.length-1} className="w-10 h-9 rounded-lg font-bold text-white" style={{background:'var(--red)', opacity:(noOrder||busy||i===list.length-1)?0.25:1}} aria-label="הזז למטה">▼</button>
+            </div>;
 
             const login = async (e) => {
                 e.preventDefault();
@@ -70,7 +104,7 @@
             const addCard = async () => {
                 if(!newMale.trim() || !newFemale.trim()) { alert('צריך למלא גם נוסח בזכר וגם נוסח בנקבה'); return; }
                 setBusy(true);
-                const { error } = await supabase.from('cards').insert({ text_male: newMale.trim(), text_female: newFemale.trim() });
+                const { error } = await supabase.from('cards').insert({ text_male: newMale.trim(), text_female: newFemale.trim(), ...(noOrder ? {} : { sort_order: nextOrder(cards) }) });
                 setBusy(false);
                 if(error) { alert('שגיאה בהוספה: ' + error.message); return; }
                 setNewMale(''); setNewFemale('');
@@ -86,7 +120,7 @@
             const addThank = async () => {
                 if(!newThank.trim()) return;
                 setBusy(true);
-                const { error } = await supabase.from('thanks').insert({ text: newThank.trim() });
+                const { error } = await supabase.from('thanks').insert({ text: newThank.trim(), ...(noOrder ? {} : { sort_order: nextOrder(thanks) }) });
                 setBusy(false);
                 if(error) { alert('שגיאה בהוספה: ' + error.message); return; }
                 setNewThank('');
@@ -118,6 +152,9 @@
                         <button onClick={logout} className="text-sm underline shrink-0" style={{color:'var(--red)'}}>התנתק</button>
                     </div>
 
+                    {noOrder && <div className="rounded-xl p-4 mb-6 text-sm font-bold" style={{background:'#fef3c7', color:'#92400e'}}>שינוי סדר עדיין לא פעיל - צריך להריץ פעם אחת את עדכון מסד הנתונים.</div>}
+                    {!noOrder && <p className="text-sm mb-4 opacity-70" style={{color:'var(--dark)'}}>הסדר ברשימה הוא הסדר באפליקציה. החצים מזיזים פריט למעלה או למטה, ופריט חדש מתווסף בסוף.</p>}
+
                     <div className="flex gap-3 mb-6">
                         <button onClick={()=>setTab('cards')} className="px-5 py-2 rounded-full font-bold transition" style={{background: tab==='cards'?'var(--red)':'#e5e7eb', color: tab==='cards'?'white':'#555'}}>אגרות ({cards.length})</button>
                         <button onClick={()=>setTab('thanks')} className="px-5 py-2 rounded-full font-bold transition" style={{background: tab==='thanks'?'var(--red)':'#e5e7eb', color: tab==='thanks'?'white':'#555'}}>תודות ({thanks.length})</button>
@@ -133,7 +170,9 @@
                             <button onClick={addCard} disabled={busy} className="px-6 py-2 rounded-full text-white font-bold" style={{background:'linear-gradient(135deg,var(--pink),var(--red))', opacity: busy?0.6:1}}>+ הוסף אגרת</button>
                         </div>
                         <div className="space-y-3">
-                            {cards.map(c => <div key={c.id} className="bg-white rounded-xl shadow p-4 flex justify-between items-start gap-3">
+                            {cards.map((c, i) => <div key={c.id} className="bg-white rounded-xl shadow p-4 flex items-center gap-3">
+                                <MoveButtons table="cards" list={cards} setList={setCards} i={i} />
+                                <span className="font-bold text-sm opacity-50 w-6 text-center shrink-0">{i+1}</span>
                                 <div className="flex-1 min-w-0">
                                     <p className="whitespace-pre-wrap text-sm mb-1 break-words"><b>זכר:</b> {c.text_male}</p>
                                     <p className="whitespace-pre-wrap text-sm opacity-70 break-words"><b>נקבה:</b> {c.text_female}</p>
@@ -151,8 +190,10 @@
                             <button onClick={addThank} disabled={busy} className="px-6 py-2 rounded-full text-white font-bold" style={{background:'linear-gradient(135deg,var(--pink),var(--red))', opacity: busy?0.6:1}}>+ הוסף תודה</button>
                         </div>
                         <div className="space-y-3">
-                            {thanks.map(t => <div key={t.id} className="bg-white rounded-xl shadow p-4 flex justify-between items-center gap-3">
-                                <p className="text-sm break-words">{t.text}</p>
+                            {thanks.map((t, i) => <div key={t.id} className="bg-white rounded-xl shadow p-4 flex items-center gap-3">
+                                <MoveButtons table="thanks" list={thanks} setList={setThanks} i={i} />
+                                <span className="font-bold text-sm opacity-50 w-6 text-center shrink-0">{i+1}</span>
+                                <p className="text-sm break-words flex-1 min-w-0">{t.text}</p>
                                 <button onClick={()=>deleteThank(t.id)} className="font-bold shrink-0" style={{color:'#dc2626'}}>מחק</button>
                             </div>)}
                             {thanks.length===0 && <p className="text-center opacity-50 py-8">אין עדיין תודות</p>}

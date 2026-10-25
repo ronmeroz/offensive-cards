@@ -106,11 +106,17 @@
             const [displayText, setDisplayText] = useState('');
 
             // טעינת מאגר האגרות והתודות ממסד הנתונים
+            // טעינה לפי הסדר שהמנהלים קבעו (sort_order); אם העמודה עוד לא קיימת - לפי תאריך יצירה
+            const fetchOrdered = async (table) => {
+                let r = await supabase.from(table).select('*').order('sort_order', {ascending:true}).order('created_at', {ascending:true});
+                if(r.error) r = await supabase.from(table).select('*').order('created_at', {ascending:true});
+                return r;
+            };
             useEffect(() => {
-                supabase.from('cards').select('*').order('created_at').then(({data, error}) => {
+                fetchOrdered('cards').then(({data, error}) => {
                     if(!error && data) setCards(data.map(c => ({id:c.id, textMale:c.text_male, textFemale:c.text_female})));
                 });
-                supabase.from('thanks').select('*').order('created_at').then(({data, error}) => {
+                fetchOrdered('thanks').then(({data, error}) => {
                     if(!error && data) setThanks(data.map(t => t.text));
                 });
             }, []);
