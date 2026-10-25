@@ -148,7 +148,7 @@
                 return data.id;
             };
             const link = (id) => `${window.location.origin}${window.location.pathname}#card=${id}`;
-            const wa = (id) => window.open(`https://wa.me/?text=${encodeURIComponent(`קיבלת אגרת ברכה! 💌\n${link(id)}`)}`, '_blank');
+            const wa = (id) => window.open(`https://wa.me/?text=${encodeURIComponent(`קיבלת אגרת ברכה מרגשת!\n${link(id)}`)}`, '_blank');
             const saveThank = async (t) => {
                 const { data, error } = await supabase.from('sent_thanks').insert({text:t}).select().single();
                 if(error) { console.error(error); alert('הייתה בעיה בשליחה, נסה שוב'); return null; }
@@ -331,10 +331,12 @@
             if(screen==='thankView') return <div className="min-h-screen p-4 relative overflow-hidden" style={{background:'linear-gradient(135deg,var(--beige),var(--white))'}}>
                 <FloatingHearts count={30} />
                 <div className="max-w-md mx-auto pt-12 relative z-10 text-center">
-                    <h1 className="text-3xl font-bold text-center" style={{color:'var(--red)'}}>קיבלת תודה!</h1>
-                    <p className="text-sm text-center mb-8 opacity-70" style={{color:'var(--red)'}}>אולי אתה לא כזה בור של חרא</p>
-                    <div className="custom-card mb-8"><div className="centered-text text-xl font-bold numbers-font" style={{color:'var(--red)'}}>{thankText}</div></div>
-                    <button onClick={() => {setScreen('home');}} className="w-full p-4 rounded-full text-xl font-bold text-white shadow-lg hover:scale-105 transition" style={{background:'linear-gradient(135deg,#a855f7,#ec4899)'}}>שלח אגרת בעצמך</button>
+                    <h1 className="text-3xl font-bold text-center mb-8" style={{color:'var(--red)'}}>קיבלת תודה!</h1>
+                    <Envelope isOpen={open} onOpen={() => setOpen(true)}><div className="custom-card"><div className="centered-text text-xl font-bold numbers-font" style={{color:'var(--red)'}}>{thankText}</div></div></Envelope>
+                    {open && <div className="mt-12">
+                        <p className="text-sm text-center mb-6 opacity-70" style={{color:'var(--red)'}}>אולי אתה לא כזה בור של חרא</p>
+                        <button onClick={() => {setScreen('home');}} className="w-full p-4 rounded-full text-xl font-bold text-white shadow-lg hover:scale-105 transition" style={{background:'linear-gradient(135deg,#a855f7,#ec4899)'}}>שלח אגרת בעצמך</button>
+                    </div>}
                 </div>
             </div>;
         }
