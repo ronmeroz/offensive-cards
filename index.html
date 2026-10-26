@@ -83,7 +83,11 @@
                 im.onload = () => { if(im.decode) im.decode().catch(() => {}); };
                 envImgs[i] = im;
             }
-            const pk = new Image(); pk.src = './assets/images/envelope-anim/pocket.png';
+            ['envelope-anim/pocket.png', 'card-frame.png'].forEach(f => {
+                const pk = new Image(); pk.src = `./assets/images/${f}`;
+                pk.onload = () => { if(pk.decode) pk.decode().catch(() => {}); };
+                envImgs.push(pk);
+            });
         };
 
         const Envelope = ({isOpen, onOpen, onDone, children}) => {
@@ -94,6 +98,7 @@
             const [W, setW] = useState(320);
             const [phase, setPhase] = useState('closed'); // closed | opening | rising | lift | out
             const [hover, setHover] = useState(false);
+            const [pocketOn, setPocketOn] = useState(false);
 
             const lastIdx = useRef(0);
             const drawFrame = (i) => {
@@ -106,7 +111,7 @@
                         const ctx = cv.getContext('2d');
                         ctx.imageSmoothingEnabled = true;
                         ctx.imageSmoothingQuality = 'high';
-                        ctx.clearRect(0, 0, cv.width, cv.height);
+                        ctx.globalCompositeOperation = 'copy';
                         ctx.drawImage(im, 0, 0, cv.width, cv.height);
                         return;
                     }
@@ -187,18 +192,20 @@
             useEffect(() => { if(!animating.current) applyPose(phase === 'out' ? 1e6 : 0); }, [W, Hc, phase]);
 
             useEffect(() => {
-                if(!isOpen) { setPhase('closed'); return; }
+                if(!isOpen) { setPhase('closed'); setPocketOn(false); return; }
                 if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-                    setCalm(true); setPhase('out'); doneRef.current && doneRef.current(); return;
+                    setCalm(true); setPocketOn(true); setPhase('out'); doneRef.current && doneRef.current(); return;
                 }
                 setPhase('opening');
                 animating.current = true;
                 const t0 = performance.now();
-                let raf, lifted = false, risen = false, fell = false, finished = false;
+                let raf, lifted = false, risen = false, fell = false, finished = false, pocketShown = false;
                 const loop = (now) => {
                     const ms = now - t0;
                     drawFrame(Math.min(ENV.frames - 1, Math.floor(ms / 1000 * ENV.fps)));
                     const P = applyPose(ms);
+                    // הכיס הקדמי מופיע לפני הכרטיס (זהה לפיקסלים שמתחתיו, כך שאין שינוי נראה) כדי שיהיה מפוענח כשהכרטיס מופיע
+                    if(!pocketShown && ms >= 1100) { pocketShown = true; setPocketOn(true); }
                     if(!risen && ms >= T.rise) { risen = true; setPhase('rising'); }
                     if(risen && !lifted && P && P.bottom <= 194 * geoRef.current.s) { lifted = true; setPhase('lift'); }
                     if(!fell && ms >= T.apex) { fell = true; setPhase('out'); }
@@ -233,7 +240,7 @@
 
                     <div className="absolute inset-0 pointer-events-none" style={{zIndex: 3}}>
                       <div className="absolute inset-0" style={envFade}>
-                        <img src="./assets/images/envelope-anim/pocket.png" alt="" className="absolute" style={{left: 12 * s, top: 181 * s, width: 445 * s, height: 'auto', visibility: phase==='closed' || phase==='opening' ? 'hidden' : 'visible'}} />
+                        <img src="./assets/images/envelope-anim/pocket.png" alt="" className="absolute" style={{left: 12 * s, top: 181 * s, width: 445 * s, height: 'auto', visibility: pocketOn ? 'visible' : 'hidden'}} />
                       </div>
                     </div>
                 </div>
@@ -354,14 +361,32 @@
             const link = (id) => `${window.location.origin}${window.location.pathname}#card=${id}`;
             const cardMsg = (id) => `קיבלת אגרת ברכה ${sentGender === 'female' ? 'יכוזרית' : 'יכוזר'}!\n${link(id)}`;
             const thankMsg = (id) => `קיבלת תודה! 💝\n${thankLink(id)}`;
-            const wa = (id) => window.open(`https://wa.me/?text=${encodeURIComponent(cardMsg(id))}`, '_blank');
+            // שליחה בוואטסאפ: בדפדפן רגיל בטלפון נפתחת האפליקציה ישירות (בלי דף הביניים של וואטסאפ);
+            // בדפדפן פנימי של אפליקציה (למשל מתוך וואטסאפ) נפתח חלון השיתוף של המכשיר; במחשב נפתח וואטסאפ ווב.
+            const shareWhatsApp = (msg) => {
+                const t = encodeURIComponent(msg);
+                const ua = navigator.userAgent || '';
+                const mobile = /Android|iPhone|iPad|iPod/i.test(ua);
+                const inApp = /FBAN|FBAV|Instagram|Line\/|WhatsApp|Telegram|MicroMessenger/i.test(ua) || (/iPhone|iPad|iPod/.test(ua) && !/Safari\//.test(ua));
+                if(inApp && navigator.share) { navigator.share({text: msg}).catch(() => {}); return; }
+                if(!mobile) { window.open(`https://wa.me/?text=${t}`, '_blank'); return; }
+                let left = false;
+                const onHide = () => { left = true; };
+                document.addEventListener('visibilitychange', onHide);
+                window.location.href = `whatsapp://send?text=${t}`;
+                setTimeout(() => {
+                    document.removeEventListener('visibilitychange', onHide);
+                    if(!left && !document.hidden) window.location.href = `https://wa.me/?text=${t}`;
+                }, 1600);
+            };
+            const wa = (id) => shareWhatsApp(cardMsg(id));
             const saveThank = async (t) => {
                 const { data, error } = await supabase.from('sent_thanks').insert({text:t}).select().single();
                 if(error) { console.error(error); showToast('הייתה בעיה בשליחה, נסה שוב'); return null; }
                 return data.id;
             };
             const thankLink = (id) => `${window.location.origin}${window.location.pathname}#thank=${id}`;
-            const waThank = (id) => window.open(`https://wa.me/?text=${encodeURIComponent(thankMsg(id))}`, '_blank');
+            const waThank = (id) => shareWhatsApp(thankMsg(id));
             const pickThank = async (t) => {
                 const id = await saveThank(t);
                 if(!id) return;
