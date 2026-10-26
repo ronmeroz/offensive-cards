@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://offensive-cards.netlify.app/sitemap.xml
