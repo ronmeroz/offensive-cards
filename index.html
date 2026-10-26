@@ -80,7 +80,8 @@
             for(let i = 0; i < ENV.frames; i++) {
                 const im = new Image();
                 im.src = `./assets/images/envelope-anim/f${String(i).padStart(2,'0')}.webp`;
-                im.onload = () => { if(im.decode) im.decode().catch(() => {}); };
+                im.onload = () => { window.dispatchEvent(new Event('env-img')); if(im.decode) im.decode().catch(() => {}); };
+                im.onerror = () => { setTimeout(() => { im.src = im.src.split('?')[0] + '?r=' + Date.now(); }, 800); };
                 envImgs[i] = im;
             }
             ['envelope-anim/pocket.png', 'card-frame.png'].forEach(f => {
@@ -101,6 +102,7 @@
             const [pocketOn, setPocketOn] = useState(false);
 
             const lastIdx = useRef(0);
+            const drawn = useRef(false);
             const drawFrame = (i) => {
                 const cv = cvRef.current;
                 if(!cv) return;
@@ -113,6 +115,7 @@
                         ctx.imageSmoothingQuality = 'high';
                         ctx.globalCompositeOperation = 'copy';
                         ctx.drawImage(im, 0, 0, cv.width, cv.height);
+                        drawn.current = true;
                         return;
                     }
                 }
@@ -134,7 +137,11 @@
                 const first = envImgs[0];
                 const draw0 = () => drawFrame(0);
                 if(first.complete && first.naturalWidth) draw0(); else first.addEventListener('load', draw0);
-                return () => { ro.disconnect(); first.removeEventListener('load', draw0); };
+                // אם הפריים הראשון עדיין לא הצטייר (טעינה איטית / דפדפן פנימי) - ממשיכים לנסות עד שמופיעה המעטפה
+                const retry = () => { if(!drawn.current) drawFrame(lastIdx.current); };
+                window.addEventListener('env-img', retry);
+                const iv = setInterval(() => { if(drawn.current) clearInterval(iv); else retry(); }, 400);
+                return () => { ro.disconnect(); first.removeEventListener('load', draw0); window.removeEventListener('env-img', retry); clearInterval(iv); };
             }, []);
 
             useEffect(() => { drawFrame(lastIdx.current); }, [W]);
