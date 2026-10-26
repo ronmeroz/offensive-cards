@@ -17,7 +17,10 @@
         @media (hover: none) {
             [class*="hover:scale"]:hover { transform: none !important; }
             [class*="hover:opacity"]:hover { opacity: 1 !important; }
-            button:active { transform: scale(0.97); transition: transform 80ms; }
+            /* הגדלה רק בזמן שהאצבע על הכפתור, וחוזרת ברגע שמשחררים */
+            [class*="hover:scale"]:active { transform: scale(1.06) !important; }
+            button:not([class*="hover:scale"]):active { transform: scale(0.96); }
+            button { transition: transform 120ms ease-out; }
         }
         .numbers-font { font-family: 'GveretLevin', 'OHNivRaviv', sans-serif; }
         :root { --pink: #f46167; --red: #cf726a; --beige: #f9dec9; --white: #f9fcea; --dark: #5C2C31; }
@@ -38,6 +41,7 @@
     <div id="root"></div>
     <script type="text/babel">
         const {useState, useEffect, useRef} = React;
+        document.addEventListener('touchstart', function(){}, {passive: true}); // כדי ש-:active יעבוד ב-iOS
 
         const SUPABASE_URL = 'https://enyibfygdrzripwkxuui.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVueWliZnlnZHJ6cmlwd2t4dXVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4NzYyOTEsImV4cCI6MjEwODQ1MjI5MX0.a1wfPAqlZWYxdgg8leN1f6KLXm7RtdLMH4hFATVhjsk';
