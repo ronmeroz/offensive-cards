@@ -361,16 +361,15 @@
             const link = (id) => `${window.location.origin}${window.location.pathname}#card=${id}`;
             const cardMsg = (id) => `קיבלת אגרת ברכה ${sentGender === 'female' ? 'יכוזרית' : 'יכוזר'}!\n${link(id)}`;
             const thankMsg = (id) => `קיבלת תודה! 💝\n${thankLink(id)}`;
-            // שליחה בוואטסאפ: בדפדפן רגיל בטלפון הקישור נפתח באותה לשונית, והטלפון פותח את האפליקציה ישירות (בלי דף הביניים של וואטסאפ);
-            // בדפדפן פנימי של אפליקציה (למשל מתוך וואטסאפ) נפתח חלון השיתוף של המכשיר; במחשב נפתח וואטסאפ ווב.
+            // שליחה: בטלפון נפתח חלון השיתוף של המכשיר (בוחרים וואטסאפ ואז איש קשר), וזה עובד גם מתוך דפדפן פנימי;
+            // במחשב או במכשיר בלי תמיכה נפתח וואטסאפ ווב / דף הקישור הרגיל.
             const shareWhatsApp = (msg) => {
                 const t = encodeURIComponent(msg);
-                const ua = navigator.userAgent || '';
-                const mobile = /Android|iPhone|iPad|iPod/i.test(ua);
-                const inApp = /FBAN|FBAV|Instagram|Line\/|WhatsApp|Telegram|MicroMessenger/i.test(ua) || (/iPhone|iPad|iPod/.test(ua) && !/Safari\//.test(ua));
-                if(inApp && navigator.share) { navigator.share({text: msg}).catch(() => {}); return; }
-                if(!mobile) { window.open(`https://wa.me/?text=${t}`, '_blank'); return; }
-                window.location.href = `https://wa.me/?text=${t}`;
+                if(navigator.share && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '')) {
+                    navigator.share({text: msg}).catch(() => {});
+                    return;
+                }
+                window.open(`https://wa.me/?text=${t}`, '_blank');
             };
             const wa = (id) => shareWhatsApp(cardMsg(id));
             const saveThank = async (t) => {
