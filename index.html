@@ -291,6 +291,8 @@
             const [hearts, setHearts] = useState([]);
             const [cards, setCards] = useState([]);
             const [thanks, setThanks] = useState([]);
+            const [labels, setLabels] = useState([]);
+            const [labelFilter, setLabelFilter] = useState(null);
             const [gender, setGender] = useState('male');
             const [sentGender, setSentGender] = useState('male');
             const [displayText, setDisplayText] = useState('');
@@ -304,7 +306,11 @@
             };
             useEffect(() => {
                 fetchOrdered('cards').then(({data, error}) => {
-                    if(!error && data) setCards(data.map(c => ({id:c.id, textMale:c.text_male, textFemale:c.text_female})));
+                    if(!error && data) setCards(data.map(c => ({id:c.id, textMale:c.text_male, textFemale:c.text_female, labelId:c.label_id || null})));
+                });
+                // קטגוריות: אם הטבלה עוד לא קיימת פשוט לא מציגים סינון
+                supabase.from('labels').select('*').order('sort_order', {ascending:true}).order('created_at', {ascending:true}).then(({data, error}) => {
+                    if(!error && data) setLabels(data);
                 });
                 fetchOrdered('thanks').then(({data, error}) => {
                     if(!error && data) setThanks(data.map(t => t.text));
@@ -428,7 +434,16 @@
             if(screen==='home') return <div className="min-h-screen p-4 pb-24" style={{background:'linear-gradient(135deg,var(--beige),var(--white))'}}>
                 <div className="max-w-md mx-auto">
                     <div className="text-center py-8"><div className="text-5xl mb-2">💌</div><h1 className="text-4xl font-bold" style={{color:'var(--red)'}}>אגרות פוגעניות</h1></div>
-                    <div className="space-y-6">{cards.map(c => <button key={c.id} onClick={() => {setCard(c); setGender('male'); setScreen('browse');}} className="w-full hover:scale-105 transition"><CardDisplay text={c.textMale} /></button>)}</div>
+                    {(() => {
+                        const used = labels.filter(l => cards.some(c => c.labelId === l.id));
+                        if(used.length === 0) return null;
+                        const chip = (active) => ({background: active ? 'var(--red)' : 'white', color: active ? 'white' : 'var(--red)', border: '2px solid var(--red)'});
+                        return <div className="flex flex-wrap justify-center gap-2 mb-6">
+                            <button onClick={() => setLabelFilter(null)} className="px-4 py-1.5 rounded-full text-lg transition" style={chip(labelFilter === null)}>הכל</button>
+                            {used.map(l => <button key={l.id} onClick={() => setLabelFilter(l.id)} className="px-4 py-1.5 rounded-full text-lg transition" style={chip(labelFilter === l.id)}>{l.name}</button>)}
+                        </div>;
+                    })()}
+                    <div className="space-y-6">{cards.filter(c => labelFilter === null || c.labelId === labelFilter).map(c => <button key={c.id} onClick={() => {setCard(c); setGender('male'); setScreen('browse');}} className="w-full hover:scale-105 transition"><CardDisplay text={c.textMale} /></button>)}</div>
                 </div>
                 <button onClick={() => setScreen('create')} className="fixed bottom-8 left-8 w-16 h-16 rounded-full shadow-2xl hover:scale-110 transition z-50" style={{background:`linear-gradient(135deg,var(--pink),var(--red))`, backgroundImage:`url('./assets/images/אייקון-כתיבה.png')`, backgroundSize:'90%', backgroundPosition:'center', backgroundRepeat:'no-repeat'}} />
             </div>;
